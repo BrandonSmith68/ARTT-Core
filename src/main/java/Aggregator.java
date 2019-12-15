@@ -1,15 +1,13 @@
 import error_sample.processing.OffsetSampleProcessor;
 import error_sample.processing.SampleProcessor;
-import error_sample.representation.TimeErrorSample;
 import models.ErrorModel;
 import models.gaussian.MultivariateGaussianModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
+//Todo comments once the error model structure is set
 public class Aggregator {
     final static Logger logger = LoggerFactory.getLogger(Aggregator.class);
 
@@ -19,7 +17,7 @@ public class Aggregator {
     private final ErrorModel subnetwork_model;
 
     public Aggregator() {
-        this(new OffsetSampleProcessor(), new MultivariateGaussianModel());
+        this(new MultivariateGaussianModel());
     }
 
     public Aggregator(ErrorModel baselineModel) {

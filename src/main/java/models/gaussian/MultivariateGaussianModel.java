@@ -19,4 +19,9 @@ public class MultivariateGaussianModel extends ErrorModel {
     public ErrorModel duplicate() {
         return this;
     }
+
+    @Override
+    public void merge(ErrorModel model) {
+
+    }
 }
