@@ -8,7 +8,7 @@ import java.math.BigInteger;
 
 public class OffsetSampleProcessor extends SampleProcessor {
     @Override
-    TimeErrorSample process(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay) {
+    TimeErrorSample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay) {
         BigInteger t1Gm = gmSync.origin_timestamp.getTimestamp();
         BigInteger t1Peer = revSync.origin_timestamp.getTimestamp();
 
