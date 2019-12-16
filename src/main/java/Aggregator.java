@@ -1,7 +1,10 @@
 import error_sample.processing.OffsetSampleProcessor;
 import error_sample.processing.SampleProcessor;
+import error_sample.representation.PTPTimestamp;
+import error_sample.representation.SyncData;
 import models.ErrorModel;
 import models.gaussian.MultivariateGaussianModel;
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +28,9 @@ public class Aggregator {
     }
 
     public Aggregator(SampleProcessor processor, ErrorModel baselineModel) {
-        setSampleProcessor(processor);
         local_model = baselineModel;
         subnetwork_model = local_model.duplicate();
+        setSampleProcessor(processor);
     }
 
     public SampleProcessor getSampleProcessor() {

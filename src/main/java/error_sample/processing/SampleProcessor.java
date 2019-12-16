@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Vector;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -14,8 +15,8 @@ import java.util.function.Consumer;
 public abstract class SampleProcessor {
     private final static Logger logger = LoggerFactory.getLogger(SampleProcessor.class);
 
-    private final SynchronousQueue<Consumer<TimeErrorSample>> sample_consumers = new SynchronousQueue<>();
-    private final SynchronousQueue<Consumer<byte[]>> amtlv_consumers = new SynchronousQueue<>();
+    private final Vector<Consumer<TimeErrorSample>> sample_consumers = new Vector<>();
+    private final Vector<Consumer<byte[]>> amtlv_consumers = new Vector<>();
 
     private final AtomicReference<GmData> most_recent_meas = new AtomicReference<>();
     private class GmData {
@@ -32,7 +33,7 @@ public abstract class SampleProcessor {
 
     public final void receivedGMSync(SyncData data, double meanPathDelay, byte [] gmIdentity) {
         GmData prev = most_recent_meas.getAndSet(new GmData(data, meanPathDelay, gmIdentity));
-        if(!Arrays.equals(gmIdentity, prev.gm_id)) {
+        if(prev != null && !Arrays.equals(gmIdentity, prev.gm_id)) {
             logger.info("Observed the grandmasterIdentity change from {} to {}. Computed time error will now be in" +
                     " reference to the new grandmaster.", Hex.encodeHexString(prev.gm_id), Hex.encodeHexString(gmIdentity));
         }
