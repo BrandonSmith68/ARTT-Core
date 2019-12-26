@@ -20,4 +20,9 @@ public class OffsetGmSample implements TimeErrorSample {
     public String getIdentifier() {
         return Hex.encodeHexString(clock_identity);
     }
+
+    @Override
+    public int getNumDimensions() {
+        return 1;
+    }
 }

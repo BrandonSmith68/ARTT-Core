@@ -1,10 +1,7 @@
 import error_sample.processing.OffsetSampleProcessor;
 import error_sample.processing.SampleProcessor;
-import error_sample.representation.PTPTimestamp;
-import error_sample.representation.SyncData;
 import models.ErrorModel;
-import models.gaussian.MultivariateGaussianModel;
-import org.apache.commons.codec.binary.Hex;
+import models.KernelDensityEstimator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +17,7 @@ public class Aggregator {
     private final ErrorModel subnetwork_model;
 
     public Aggregator() {
-        this(new MultivariateGaussianModel());
+        this(new KernelDensityEstimator(100));
     }
 
     public Aggregator(ErrorModel baselineModel) {
