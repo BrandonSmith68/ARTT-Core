@@ -6,9 +6,9 @@ import error_sample.representation.TimeErrorSample;
 
 import java.math.BigInteger;
 
-public class OffsetSampleProcessor extends SampleProcessor {
+public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     @Override
-    TimeErrorSample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay) {
+    OffsetGmSample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay) {
         BigInteger t1Gm = gmSync.origin_timestamp.getTimestamp();
         BigInteger t1Peer = revSync.origin_timestamp.getTimestamp();
 

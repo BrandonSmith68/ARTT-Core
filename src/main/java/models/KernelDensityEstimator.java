@@ -10,11 +10,11 @@ import smile.stat.distribution.KernelDensity;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class KernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
     private static final Logger logger = LoggerFactory.getLogger(KernelDensityEstimator.class);
@@ -26,18 +26,9 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
     }
 
     @Override
-    public void processAMTLV(byte[] amtlv) {
-
-    }
-
-    @Override
-    public ErrorModel duplicate() {
-        return null;
-    }
-
-    @Override
-    public void merge(ErrorModel model) {
-
+    LinkedList<Sample> resample(LinkedList<Sample> s1, LinkedList<Sample> s2) {
+        //Todo eventually combine standard deviations and resample distributions
+        return Stream.concat(s1.stream(), s2.stream()).collect(Collectors.toCollection(LinkedList::new));
     }
 
     @Override

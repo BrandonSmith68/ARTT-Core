@@ -6,16 +6,18 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Time;
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public abstract class SampleProcessor {
+public abstract class SampleProcessor<Sample extends TimeErrorSample> {
     private final static Logger logger = LoggerFactory.getLogger(SampleProcessor.class);
 
-    private final Vector<Consumer<TimeErrorSample>> sample_consumers = new Vector<>();
-    private final Vector<Consumer<byte[]>> amtlv_consumers = new Vector<>();
+    private final Vector<Consumer<Sample>> sample_consumers = new Vector<>();
+    private final Vector<BiConsumer<Byte, byte[]>> amtlv_consumers = new Vector<>();
 
     private final AtomicReference<GmData> most_recent_meas = new AtomicReference<>();
     private class GmData {
@@ -41,23 +43,23 @@ public abstract class SampleProcessor {
     public final void receivedReverseSync(SyncData revSyncData, double peerMeanPathDelay) {
         GmData gmData = most_recent_meas.get();
         if(gmData != null) {
-            TimeErrorSample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
+            Sample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
             sample_consumers.parallelStream().forEach(action->action.accept(sample));
-            amtlv_consumers.parallelStream().forEach(action->action.accept(revSyncData.amtlv));
+            amtlv_consumers.parallelStream().forEach(action->action.accept(revSyncData.amtlv_id, revSyncData.amtlv));
         }
     }
 
-    public final void registerErrorComputeAction(Consumer<TimeErrorSample> sampleConsumer) {
+    public final void registerErrorComputeAction(Consumer<Sample> sampleConsumer) {
         sample_consumers.add(sampleConsumer);
     }
 
-    public final void unregisterErrorComputeAction(Consumer<TimeErrorSample> sampleConsumer) {
+    public final void unregisterErrorComputeAction(Consumer<Sample> sampleConsumer) {
         sample_consumers.remove(sampleConsumer);
     }
 
-    public final void onAMTLVReceipt(Consumer<byte[]> amtlvConsumer) {
+    public final void onAMTLVReceipt(BiConsumer<Byte, byte[]> amtlvConsumer) {
         amtlv_consumers.add(amtlvConsumer);
     }
 
-    abstract TimeErrorSample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay);
+    abstract Sample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay);
 }

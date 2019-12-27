@@ -12,8 +12,8 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     private final Logger logger = LoggerFactory.getLogger(ErrorModel.class);
 
     //LinkedList for a simple queue. Always need to access all elements anyways
-    private final LinkedList<Sample> sample_window;
-    private final int sample_size;
+    protected LinkedList<Sample> sample_window;
+    protected int sample_size;
 
     public ErrorModel(int sampleWindow) {
         sample_window = new LinkedList<>();
@@ -39,11 +39,40 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
 
     public final int getWindowSize() { return sample_size; }
 
+    public final void modifyWindowSize(int newWindow) {
+        if(newWindow > 0)
+            sample_size = newWindow;
+        else
+            logger.error("Attempted to set a window size of {}, which is not greater than 0.", newWindow);
+    }
+
     protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
-    public abstract void processAMTLV(byte [] amtlv);
-    public abstract ErrorModel duplicate();
-    public abstract void merge(ErrorModel model);
+    public ErrorModel<Sample> duplicate() {
+        try {
+            ErrorModel<Sample> kde = (ErrorModel<Sample>)this.getClass().getDeclaredConstructor(Integer.class).newInstance(this.getWindowSize());
+
+            return kde;
+        } catch(Exception nsme) {
+            logger.error("Failed to duplicate model", nsme);
+            return null;
+        }
+    }
+
+    abstract LinkedList<Sample> resample(LinkedList<Sample> s1, LinkedList<Sample> s2);
+
+    public ErrorModel<Sample> merge(ErrorModel<Sample> model) {
+        try {
+            LinkedList<Sample> samples = resample(this.sample_window, model.sample_window);
+            ErrorModel<Sample> em = (ErrorModel<Sample>)this.getClass().getDeclaredConstructor(Integer.class).newInstance(samples.size());
+            em.sample_window = samples;
+            em.computeMetrics(samples);
+            return em;
+        } catch(Exception nsme) {
+            logger.error("Failed to merge models", nsme);
+            return null;
+        }
+    }
 
     public abstract double estimate(Sample point);
 }
