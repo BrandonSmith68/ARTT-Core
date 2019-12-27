@@ -1,15 +1,23 @@
 package models;
 
+import error_sample.representation.OffsetGmSample;
 import error_sample.representation.TimeErrorSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import smile.plot.Histogram;
+import smile.plot.PlotCanvas;
 import smile.stat.distribution.KernelDensity;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class KernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
-    private final Logger logger = LoggerFactory.getLogger(KernelDensityEstimator.class);
+    private static final Logger logger = LoggerFactory.getLogger(KernelDensityEstimator.class);
 
     private final AtomicReference<KernelDensity> most_recent_estimator = new AtomicReference<>(null);
 
@@ -74,5 +82,62 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
         double x = point.getSample()[0];
 
         return estimator.p(x);
+    }
+
+    public static void main(String[] args) {
+        String usage = "Usage: <window size> <mean> <variance> <num_samples> <num_modes> <mode distance>";
+        if(args.length != 6) {
+            logger.error(usage);
+            return;
+        }
+
+        double [] samples;
+        double[][] distData;
+        try {
+            KernelDensityEstimator<OffsetGmSample> estimator = new KernelDensityEstimator<>(Integer.valueOf(args[0]));
+            Random r = new Random();
+            double mean = Double.valueOf(args[1]);
+            double variance =  Double.valueOf(args[2]);
+            int sampleCount = Integer.valueOf(args[3]);
+            int modes = Integer.valueOf(args[4]);
+            int modeDist = Integer.valueOf(args[5]);
+            long min = Long.MAX_VALUE, max = Long.MIN_VALUE;
+            samples = new double[modes*sampleCount];
+
+            for(int i = 0; i < sampleCount*modes; i+=modes) {
+                for(int m = 0; m < modes; m++) {
+                    long sample = Math.round(mean + (modeDist*m) + r.nextGaussian() * variance);
+                    samples[i+m] = sample;
+                    estimator.addSample(new OffsetGmSample(sample, new byte[8]));
+                    min = (sample < min) ? sample : min;
+                    max = (sample > max) ? sample : max;
+                }
+            }
+
+            int range = (int)(max - min) + ((int)variance*4);
+            distData = new double[range][2];//XY coords
+            for(int i = 0; i < range; i++) {
+                long xCoord = i+min-((int)variance*2);
+                distData[i][0] = xCoord;
+                distData[i][1] = estimator.estimate(new OffsetGmSample(xCoord, new byte[8]));
+            }
+        } catch(NumberFormatException nfe) {
+            logger.error("Invalid input: {}", nfe.getMessage());
+            logger.error(usage);
+            return;
+        }
+
+        JPanel panel = new JPanel(new GridLayout(1,2));
+        PlotCanvas plot = Histogram.plot(samples);
+        panel.add(plot);
+
+        plot.line(distData);
+
+        JFrame frame = new JFrame("Line Plot");
+        frame.setSize(600, 600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLocationRelativeTo(null);
+        frame.getContentPane().add(panel);
+        frame.setVisible(true);
     }
 }

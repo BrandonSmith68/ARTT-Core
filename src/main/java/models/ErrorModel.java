@@ -26,9 +26,10 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     public final void addSample(Sample sample) {
         sample_window.addFirst(sample);
 
-        if(sample_window.size() > sample_size) {
+        if(sample_window.size() > sample_size)
             sample_window.removeLast();
 
+        if(sample_window.size() == sample_size) {
             if(!windowFlag.compareAndExchange(false, true))
                 logger.info("Reached moving sample window size ({}). Model estimation has started.", sample_size);
 
