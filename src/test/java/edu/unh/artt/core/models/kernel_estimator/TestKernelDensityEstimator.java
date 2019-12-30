@@ -1,7 +1,7 @@
-package models.kernel_estimator;
+package edu.unh.artt.core.models.kernel_estimator;
 
-import error_sample.representation.OffsetGmSample;
-import models.KernelDensityEstimator;
+import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
+import edu.unh.artt.core.models.KernelDensityEstimator;
 import org.junit.Assert;
 import org.junit.Test;
 

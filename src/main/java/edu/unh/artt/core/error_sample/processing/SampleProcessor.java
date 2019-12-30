@@ -1,12 +1,11 @@
-package error_sample.processing;
+package edu.unh.artt.core.error_sample.processing;
 
-import error_sample.representation.SyncData;
-import error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.error_sample.representation.SyncData;
+import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Time;
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;

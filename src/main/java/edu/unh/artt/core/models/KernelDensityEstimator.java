@@ -1,7 +1,7 @@
-package models;
+package edu.unh.artt.core.models;
 
-import error_sample.representation.OffsetGmSample;
-import error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
+import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import smile.plot.Histogram;

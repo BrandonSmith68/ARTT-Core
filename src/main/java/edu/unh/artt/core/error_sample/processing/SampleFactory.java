@@ -1,6 +1,6 @@
-package error_sample.processing;
+package edu.unh.artt.core.error_sample.processing;
 
-import error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 
 import java.util.LinkedList;
 

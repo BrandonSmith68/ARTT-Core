@@ -1,4 +1,4 @@
-package error_sample.representation;
+package edu.unh.artt.core.error_sample.representation;
 
 public class SyncData {
     public final byte [] clock_identity;

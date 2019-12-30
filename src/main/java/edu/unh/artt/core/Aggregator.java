@@ -1,14 +1,12 @@
-import error_sample.processing.OffsetSampleProcessor;
-import error_sample.processing.SampleFactory;
-import error_sample.processing.SampleProcessor;
-import error_sample.representation.OffsetGmSample;
-import error_sample.representation.TimeErrorSample;
-import models.ErrorModel;
-import models.KernelDensityEstimator;
+package edu.unh.artt.core;
+
+import edu.unh.artt.core.error_sample.processing.SampleFactory;
+import edu.unh.artt.core.error_sample.processing.SampleProcessor;
+import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.models.ErrorModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicReference;
 
 //Todo comments once the error model structure is set

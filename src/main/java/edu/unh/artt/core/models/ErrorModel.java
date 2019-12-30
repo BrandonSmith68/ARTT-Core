@@ -1,6 +1,6 @@
-package models;
+package edu.unh.artt.core.models;
 
-import error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +69,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
             em.computeMetrics(samples);
             return em;
         } catch(Exception nsme) {
-            logger.error("Failed to merge models", nsme);
+            logger.error("Failed to merge edu.unh.artt.core.models", nsme);
             return null;
         }
     }
