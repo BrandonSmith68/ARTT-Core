@@ -29,7 +29,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
     private final ArrayList<Sample> outlier_buffer;
 
     public Aggregator(SampleProcessor<Sample> processor, ErrorModel<Sample> baselineModel,
-                      Class<OutlierDetector<Sample>> detectorType, int numPorts) {
+                      OutlierDetector<Sample> localDetector, OutlierDetector<Sample> subnetworkDetector, int numPorts) {
         local_model = baselineModel;
         subnetwork_model = local_model.duplicate();
 
@@ -37,12 +37,8 @@ public class Aggregator<Sample extends TimeErrorSample> {
         subnetwork_model.modifyWindowSize(windowSize);
         outlier_buffer = new ArrayList<>(windowSize);
 
-        try {
-            local_outlier_detector = detectorType.getDeclaredConstructor(ErrorModel.class).newInstance(local_model);
-            subnetwork_outlier_detector = detectorType.getDeclaredConstructor(ErrorModel.class).newInstance(subnetwork_model);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to instantiate outlier detectors.", e);
-        }
+        local_outlier_detector = localDetector;
+        subnetwork_outlier_detector = subnetworkDetector;
         setSampleProcessor(processor);
     }
 
