@@ -2,6 +2,7 @@ package edu.unh.artt.core.error_sample.processing;
 
 import edu.unh.artt.core.error_sample.representation.SyncData;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,14 +10,13 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public abstract class SampleProcessor<Sample extends TimeErrorSample> {
     private final static Logger logger = LoggerFactory.getLogger(SampleProcessor.class);
 
     private final Vector<Consumer<Sample>> sample_consumers = new Vector<>();
-    private final Vector<BiConsumer<Byte, byte[]>> amtlv_consumers = new Vector<>();
+    private final Vector<Consumer<AMTLVData<Sample>>> amtlv_consumers = new Vector<>();
 
     private final AtomicReference<GmData> most_recent_meas = new AtomicReference<>();
     private class GmData {
@@ -44,7 +44,7 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
         if(gmData != null) {
             Sample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
             sample_consumers.parallelStream().forEach(action->action.accept(sample));
-            amtlv_consumers.parallelStream().forEach(action->action.accept(revSyncData.amtlv_id, revSyncData.amtlv));
+            amtlv_consumers.parallelStream().forEach(action->action.accept(processAMTLVData(revSyncData.amtlv)));
         }
     }
 
@@ -56,7 +56,9 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
         sample_consumers.remove(sampleConsumer);
     }
 
-    public final void onAMTLVReceipt(BiConsumer<Byte, byte[]> amtlvConsumer) {
+    protected abstract AMTLVData<Sample> processAMTLVData(byte [] AMTLV);
+
+    public final void onAMTLVReceipt(Consumer<AMTLVData<Sample>> amtlvConsumer) {
         amtlv_consumers.add(amtlvConsumer);
     }
 

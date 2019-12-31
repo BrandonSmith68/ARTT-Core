@@ -32,8 +32,8 @@ public class Aggregator<Sample extends TimeErrorSample> {
     public void setSampleProcessor(SampleProcessor<Sample> proc) {
         logger.info("New sync messages are now being processed using a " + proc);
         proc.registerErrorComputeAction(local_model::addSample);
-        proc.onAMTLVReceipt((Byte id, byte [] amtlvData) ->
-            SampleFactory.<Sample>processAMTLVData(id, amtlvData).forEach(subnetwork_model::addSample));
+        proc.onAMTLVReceipt((amtlv) -> amtlv.subnetwork_outliers.forEach(subnetwork_model::addSample));
+        //todo outlier processing
         sample_processor.set(proc);
     }
 }
