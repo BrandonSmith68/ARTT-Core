@@ -10,6 +10,7 @@ import smile.stat.distribution.KernelDensity;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,7 +76,7 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
         return estimator.p(x);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         String usage = "Usage: <window size> <mean> <variance> <num_samples> <num_modes> <mode distance>";
         if(args.length != 6) {
             logger.error(usage);
@@ -123,12 +124,21 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
         panel.add(plot);
 
         plot.line(distData);
-
+        
         JFrame frame = new JFrame("Line Plot");
         frame.setSize(600, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.getContentPane().add(panel);
         frame.setVisible(true);
+
+//        SwingUtilities.invokeLater(()-> {
+//            try {
+//                Thread.sleep(1000);
+//                plot.save(new File("test.png"));
+//            } catch(Exception e) {
+//                logger.error("", e);
+//            }
+//        });
     }
 }

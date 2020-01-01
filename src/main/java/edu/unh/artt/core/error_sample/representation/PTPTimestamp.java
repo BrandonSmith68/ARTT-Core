@@ -4,29 +4,33 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 public class PTPTimestamp {
-    private final byte [] ptp_timestamp;
-    private final byte [] second_field;
-    private final byte [] nano_field;
-    private final BigInteger total_ns;
+    private final long seconds;
+    private final long nanoseconds;
+    private final long total_ns;
 
     public static final long NSEC_PER_SEC = 1_000_000_000;
 
     public PTPTimestamp(byte [] ptpTS) {
-        ptp_timestamp = Arrays.copyOf(ptpTS, ptpTS.length);
-        nano_field = Arrays.copyOfRange(ptpTS, 6, 10);
-        second_field = Arrays.copyOfRange(ptpTS, 0, 6);
-        total_ns = new BigInteger(second_field).multiply(BigInteger.valueOf(NSEC_PER_SEC)).add(new BigInteger(nano_field));
+        nanoseconds = new BigInteger(Arrays.copyOfRange(ptpTS, 6, 10)).longValue();
+        seconds = new BigInteger(Arrays.copyOfRange(ptpTS, 0, 6)).longValue();
+        total_ns = seconds * NSEC_PER_SEC + nanoseconds;
     }
 
-    public BigInteger getTimestamp() {
+    public PTPTimestamp(long ptpTS) {
+        seconds = ptpTS / NSEC_PER_SEC;
+        nanoseconds = ptpTS % NSEC_PER_SEC;
+        total_ns = ptpTS;
+    }
+
+    public long getTimestamp() {
         return total_ns;
     }
 
     public long getSecondsField() {
-        return new BigInteger(second_field).longValue();
+        return seconds;
     }
 
     public long getNanosecondsField() {
-        return new BigInteger(nano_field).longValue();
+        return nanoseconds;
     }
 }
