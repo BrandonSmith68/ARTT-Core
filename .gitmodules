@@ -1,0 +1,4 @@
+[submodule "lib/jep"]
+	path = lib/jep
+	url = https://github.com/ninia/jep.git
+	branch = master

@@ -20,6 +20,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
         sample_size = sampleWindow;
     }
 
+    public abstract void shutdown();
 
     private final AtomicBoolean windowFlag = new AtomicBoolean(false);
 
@@ -48,31 +49,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
 
     protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
-    public ErrorModel<Sample> duplicate() {
-        try {
-            ErrorModel<Sample> kde = (ErrorModel<Sample>)this.getClass().getDeclaredConstructor(Integer.class).newInstance(this.getWindowSize());
-
-            return kde;
-        } catch(Exception nsme) {
-            logger.error("Failed to duplicate model", nsme);
-            return null;
-        }
-    }
-
-    abstract LinkedList<Sample> resample(LinkedList<Sample> s1, LinkedList<Sample> s2);
-
-    public ErrorModel<Sample> merge(ErrorModel<Sample> model) {
-        try {
-            LinkedList<Sample> samples = resample(this.sample_window, model.sample_window);
-            ErrorModel<Sample> em = (ErrorModel<Sample>)this.getClass().getDeclaredConstructor(Integer.class).newInstance(samples.size());
-            em.sample_window = samples;
-            em.computeMetrics(samples);
-            return em;
-        } catch(Exception nsme) {
-            logger.error("Failed to merge edu.unh.artt.core.models", nsme);
-            return null;
-        }
-    }
+    abstract LinkedList<Sample> resample(int newWindow);
 
     public abstract double estimate(Sample point);
 }

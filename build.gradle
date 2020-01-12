@@ -11,6 +11,17 @@ repositories {
     mavenCentral()
 }
 
+ext {
+    pythonPath = '/usr/local/bin:/usr/bin:/bin'
+    sitePackages = '/usr/local/lib/python3.7/site-packages'
+}
+
+task pippacks(type: Exec) {
+    environment PATH: pythonPath
+    commandLine = "./setup_python.sh"
+}
+build.dependsOn pippacks
+
 dependencies {
     // https://mvnrepository.com/artifact/commons-codec/commons-codec
     compile group: 'commons-codec', name: 'commons-codec', version: '1.13'
@@ -20,10 +31,29 @@ dependencies {
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.29'
 
-    // https://mvnrepository.com/artifact/com.github.haifengl/smile-core
-    compile group: 'com.github.haifengl', name: 'smile-core', version: '2.0.0'
+    // https://mvnrepository.com/artifact/black.ninia/jep
+    compile group: 'black.ninia', name: 'jep', version: '3.9.0'
+
     // https://mvnrepository.com/artifact/com.github.haifengl/smile-plot
     compile group: 'com.github.haifengl', name: 'smile-plot', version: '2.0.0'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+task runAgg(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = 'edu.unh.artt.core.Aggregator'
+    jvmArgs = ['-Djava.library.path=.:' + sitePackages + "/jep"]
+}
+
+task runKDE(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    main = 'edu.unh.artt.core.models.KernelDensityEstimator'
+    jvmArgs = ["-Djava.library.path=.:" + sitePackages + "/jep"]
+    args = ["1000", //Size of the sample window
+            "10", //Mean value for first mode
+            "2", //Variance of the modes
+            "1000", // Number of samples
+            "2", //Number of modes
+            "10"]//Distance between modes
 }

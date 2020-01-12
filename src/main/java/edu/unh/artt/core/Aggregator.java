@@ -1,6 +1,5 @@
 package edu.unh.artt.core;
 
-import edu.unh.artt.core.error_sample.processing.SampleFactory;
 import edu.unh.artt.core.error_sample.processing.SampleProcessor;
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
@@ -10,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,8 +18,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
     private final AtomicReference<SampleProcessor<Sample>> sample_processor = new AtomicReference<>();
 
-    private final ErrorModel<Sample> local_model;
-    private final ErrorModel<Sample> subnetwork_model;
+    private final ErrorModel<Sample> network_model;
 
     private final OutlierDetector<Sample> local_outlier_detector;
     private final OutlierDetector<Sample> subnetwork_outlier_detector;
@@ -30,11 +27,10 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
     public Aggregator(SampleProcessor<Sample> processor, ErrorModel<Sample> baselineModel,
                       OutlierDetector<Sample> localDetector, OutlierDetector<Sample> subnetworkDetector, int numPorts) {
-        local_model = baselineModel;
-        subnetwork_model = local_model.duplicate();
+        network_model = baselineModel;
 
-        int windowSize = subnetwork_model.getWindowSize()*numPorts;
-        subnetwork_model.modifyWindowSize(windowSize);
+        int windowSize = network_model.getWindowSize()*numPorts;
+        network_model.modifyWindowSize(windowSize);
         outlier_buffer = new ArrayList<>(windowSize);
 
         local_outlier_detector = localDetector;
@@ -49,14 +45,13 @@ public class Aggregator<Sample extends TimeErrorSample> {
     public void setSampleProcessor(SampleProcessor<Sample> proc) {
         logger.info("New sync messages are now being processed using a " + proc);
         proc.registerErrorComputeAction((sample -> {
-            local_model.addSample(sample);
-            subnetwork_model.addSample(sample);
+            network_model.addSample(sample);
 
             if(local_outlier_detector.isOutlier(sample) && subnetwork_outlier_detector.isOutlier(sample))
                 outlier_buffer.add(sample);
         }));
         proc.onAMTLVReceipt((amtlv) -> {
-            amtlv.subnetwork_samples.forEach(subnetwork_model::addSample);
+            amtlv.subnetwork_samples.forEach(network_model::addSample);
             amtlv.subnetwork_outliers.stream().filter(subnetwork_outlier_detector::isOutlier).forEach(outlier_buffer::add);
         });
         sample_processor.set(proc);
@@ -65,5 +60,9 @@ public class Aggregator<Sample extends TimeErrorSample> {
     public AMTLVData<Sample> retrieveNewData() {
         //Todo clear outlier buffer, get most recent samples
         return new AMTLVData<>(List.of(), List.of());
+    }
+
+    public static void main(String [] args) {
+//        logger.info();
     }
 }

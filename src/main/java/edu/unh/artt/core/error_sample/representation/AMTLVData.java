@@ -1,7 +1,5 @@
 package edu.unh.artt.core.error_sample.representation;
 
-import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
-
 import java.util.Collections;
 import java.util.List;
 

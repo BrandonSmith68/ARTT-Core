@@ -1,8 +1,8 @@
 package edu.unh.artt.core.error_sample.processing;
 
+import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.SyncData;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
-import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,8 +1,8 @@
 package edu.unh.artt.core.error_sample.processing;
 
+import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.SyncData;
-import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +26,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         BigInteger dwnstrmCorr = new BigInteger(revSync.correction_field).add(BigInteger.valueOf(Math.round(dwnstrmPdelay)));
 
         long offsetFromGm = (t1Peer - t1Gm) + (t2Gm - t2Peer) + (dwnstrmCorr.subtract(upstrmCorr)).longValue();
-        return new OffsetGmSample(offsetFromGm, revSync.clock_identity);
+        return new OffsetGmSample((short)1, offsetFromGm, revSync.clock_identity);
     }
 
     @Override
@@ -44,7 +44,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         for(int i = 0; i < amtlv.length; i += 16) {
             long offset = new BigInteger(Arrays.copyOfRange(amtlv, i, i+8)).longValue();
             byte [] clockId = Arrays.copyOfRange(amtlv, i+8, i+16);
-            OffsetGmSample sample = new OffsetGmSample(offset, clockId);
+            OffsetGmSample sample = new OffsetGmSample((short)1, offset, clockId);
             ((i < sampleLen) ? samples : outliers).add(sample);
         }
 
