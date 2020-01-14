@@ -52,6 +52,12 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     }
 
     @Override
+    public AMTLVData<OffsetGmSample> packageAMTLVData(int networkRep, List<OffsetGmSample> outliers, double[][] resampledData) {
+        //TODO Package these into AMTLV byte arrays
+        return null;
+    }
+
+    @Override
     public String toString() {
         return "Offset from GM Sample Processor";
     }

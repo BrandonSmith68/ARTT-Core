@@ -14,18 +14,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
 
-public class KernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
-    private static final Logger logger = LoggerFactory.getLogger(KernelDensityEstimator.class);
+public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
+    private static final Logger logger = LoggerFactory.getLogger(WeightedKernelDensityEstimator.class);
 
     private final Interpreter kde_wrapper;
 
-    private final AtomicReference<double[][]> sample_array = new AtomicReference<>(new double[0][0]);
-    private final AtomicReference<int[]> weight_array = new AtomicReference<>(new int[0]);
-
-    public KernelDensityEstimator(int sampleWindow, int numDim) {
+    public WeightedKernelDensityEstimator(int sampleWindow, int numDim) {
         super(sampleWindow, numDim);
 
         try {
@@ -70,7 +65,7 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
     }
 
     @Override
-    double[][] resample(int newWindow) {
+    public double[][] resample(int newWindow) {
         try {
             if(kde_wrapper.getValue("pdf") != null) {
                 kde_wrapper.exec("newsamples = pdf.resample(size= " + newWindow + ")");
@@ -124,7 +119,7 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
         File csv = new File("test.csv");
         FileWriter csvWriter = new FileWriter(csv);
         try {
-            KernelDensityEstimator<OffsetGmSample> estimator = new KernelDensityEstimator<>(Integer.valueOf(args[0]), 2);
+            WeightedKernelDensityEstimator<OffsetGmSample> estimator = new WeightedKernelDensityEstimator<>(Integer.valueOf(args[0]), 2);
             Random r = new Random();
             double mean = Double.valueOf(args[1]);
             double variance =  Double.valueOf(args[2]);

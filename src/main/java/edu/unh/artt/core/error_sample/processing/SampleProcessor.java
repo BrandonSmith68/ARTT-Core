@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -57,6 +58,7 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
     }
 
     protected abstract AMTLVData<Sample> processAMTLVData(byte [] AMTLV);
+    public abstract AMTLVData<Sample> packageAMTLVData(int networkRep, List<Sample> outliers, double [][] resampledData);
 
     public final void onAMTLVReceipt(Consumer<AMTLVData<Sample>> amtlvConsumer) {
         amtlv_consumers.add(amtlvConsumer);

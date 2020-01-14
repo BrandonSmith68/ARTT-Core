@@ -49,7 +49,7 @@ task runAgg(type: JavaExec) {
 
 task runKDE(type: JavaExec) {
     classpath sourceSets.main.runtimeClasspath
-    main = 'edu.unh.artt.core.models.KernelDensityEstimator'
+    main = 'edu.unh.artt.core.models.WeightedKernelDensityEstimator'
     jvmArgs = ["-Djava.library.path=.:" + sitePackages + "/jep"]
     args = ["1000", //Size of the sample window
             "10", //Mean value for first mode

@@ -51,7 +51,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
 
     protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
-    abstract double[][] resample(int newWindow);
+    public abstract double[][] resample(int newWindow);
 
     public abstract double estimate(Sample point);
 }
