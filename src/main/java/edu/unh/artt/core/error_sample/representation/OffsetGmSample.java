@@ -2,6 +2,8 @@ package edu.unh.artt.core.error_sample.representation;
 
 import org.apache.commons.codec.binary.Hex;
 
+import java.util.Random;
+
 public class OffsetGmSample implements TimeErrorSample {
     final long offset_from_gm;
     final byte [] clock_identity;
@@ -13,9 +15,11 @@ public class OffsetGmSample implements TimeErrorSample {
         this.weight = weight;
     }
 
+    Random r = new Random();
+
     @Override
     public double[] getSample() {
-        return new double[] {offset_from_gm};
+        return new double[] {r.nextFloat(), offset_from_gm};
     }
 
     @Override
@@ -30,6 +34,6 @@ public class OffsetGmSample implements TimeErrorSample {
 
     @Override
     public int getNumDimensions() {
-        return 1;
+        return 2;
     }
 }

@@ -38,7 +38,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
         setSampleProcessor(processor);
     }
 
-    public SampleProcessor getSampleProcessor() {
+    public SampleProcessor<Sample> getSampleProcessor() {
         return sample_processor.get();
     }
 

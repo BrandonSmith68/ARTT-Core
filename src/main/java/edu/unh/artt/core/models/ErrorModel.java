@@ -14,10 +14,12 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     //LinkedList for a simple queue. Always need to access all elements anyways
     protected LinkedList<Sample> sample_window;
     protected int sample_size;
+    protected final int num_dimensions;
 
-    public ErrorModel(int sampleWindow) {
+    public ErrorModel(int sampleWindow, int numDim) {
         sample_window = new LinkedList<>();
         sample_size = sampleWindow;
+        num_dimensions = numDim;
     }
 
     public abstract void shutdown();
@@ -49,7 +51,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
 
     protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
-    abstract LinkedList<Sample> resample(int newWindow);
+    abstract double[][] resample(int newWindow);
 
     public abstract double estimate(Sample point);
 }

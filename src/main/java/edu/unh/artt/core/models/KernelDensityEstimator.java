@@ -15,6 +15,7 @@ import java.io.FileWriter;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 
 public class KernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
     private static final Logger logger = LoggerFactory.getLogger(KernelDensityEstimator.class);
@@ -24,8 +25,8 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
     private final AtomicReference<double[][]> sample_array = new AtomicReference<>(new double[0][0]);
     private final AtomicReference<int[]> weight_array = new AtomicReference<>(new int[0]);
 
-    public KernelDensityEstimator(int sampleWindow) {
-        super(sampleWindow);
+    public KernelDensityEstimator(int sampleWindow, int numDim) {
+        super(sampleWindow, numDim);
 
         try {
             JepConfig conf = new JepConfig();
@@ -46,12 +47,12 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
 
     @Override
     protected void computeMetrics(LinkedList<Sample> smpls) {
-        int numD = smpls.get(0).getNumDimensions();
-        double [][] samples = new double[smpls.size()][numD];
+        double [][] samples = new double[num_dimensions][smpls.size()];
         int [] weights = new int[smpls.size()];
         int idx = 0;
         for(Sample s : smpls) {
-            samples[idx] = s.getSample();
+            for(int dim = 0; dim < num_dimensions; dim++)
+                samples[dim][idx] = s.getSample()[dim];
             weights[idx++] = s.getWeight();
         }
 
@@ -59,9 +60,9 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
             kde_wrapper.set("weights", weights);
             kde_wrapper.set("samples", samples);
             kde_wrapper.exec("weights = np.atleast_1d(weights)");
-            kde_wrapper.exec("samples = np.atleast_2d(weights)");
+            kde_wrapper.exec("samples = np.atleast_2d(samples)");
 
-            kde_wrapper.exec("pdf = stats.gaussian_kde(samples, weights=weights)");
+            kde_wrapper.exec("pdf = stats.gaussian_kde(samples)");
         } catch(JepException jpe) {
             logger.error("Failed to transfer shared memory", jpe);
             throw new IllegalStateException();
@@ -69,8 +70,25 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
     }
 
     @Override
-    LinkedList<Sample> resample(int newWindow) {
-        return null;
+    double[][] resample(int newWindow) {
+        try {
+            if(kde_wrapper.getValue("pdf") != null) {
+                kde_wrapper.exec("newsamples = pdf.resample(size= " + newWindow + ")");
+                double[] newSamples = ((NDArray<double[]>) kde_wrapper.getValue("newsamples")).getData();
+                if(newSamples.length != newWindow*num_dimensions)
+                    throw new IllegalStateException("Attempted to resample previously computed KDE, but observed a " +
+                            "mismatch in dimensionality.");
+
+                double [][] split = new double[newWindow][num_dimensions];
+                for(int i = 0; i < newSamples.length; i++)
+                    split[i%newWindow][i/newWindow] = newSamples[i];
+                return split;
+            }
+        } catch(JepException | ClassCastException jpe) {
+            logger.error("Failed to transfer shared memory", jpe);
+            throw new IllegalStateException();
+        }
+        return new double[0][];
     }
 
     @Override
@@ -106,7 +124,7 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
         File csv = new File("test.csv");
         FileWriter csvWriter = new FileWriter(csv);
         try {
-            KernelDensityEstimator<OffsetGmSample> estimator = new KernelDensityEstimator<>(Integer.valueOf(args[0]));
+            KernelDensityEstimator<OffsetGmSample> estimator = new KernelDensityEstimator<>(Integer.valueOf(args[0]), 2);
             Random r = new Random();
             double mean = Double.valueOf(args[1]);
             double variance =  Double.valueOf(args[2]);
@@ -135,6 +153,7 @@ public class KernelDensityEstimator<Sample extends TimeErrorSample> extends Erro
                 distData[i][0] = xCoord;
                 distData[i][1] = estimator.estimate(new OffsetGmSample((short)1, xCoord, new byte[8]));
             }
+            estimator.resample(500);
             estimator.shutdown();
         } catch(NumberFormatException nfe) {
             logger.error("Invalid input: {}", nfe.getMessage());

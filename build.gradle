@@ -5,7 +5,8 @@ plugins {
 group 'edu.unh.artt.core'
 version '1.0-SNAPSHOT'
 
-sourceCompatibility = 11
+sourceCompatibility = 13
+targetCompatibility = 13
 
 repositories {
     mavenCentral()
