@@ -1,5 +1,6 @@
 package edu.unh.artt.core.models;
 
+import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import jep.*;
@@ -65,7 +66,13 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     }
 
     @Override
-    public double[][] resample(int newWindow) {
+    public boolean shouldResample(AMTLVData<Sample> lastSent) {
+        return super.shouldResample(lastSent);
+        //TODO Compare the distributions
+    }
+
+    @Override
+    protected double[][] resampleImpl(int newWindow) {
         try {
             if(kde_wrapper.getValue("pdf") != null) {
                 kde_wrapper.exec("newsamples = pdf.resample(size= " + newWindow + ")");

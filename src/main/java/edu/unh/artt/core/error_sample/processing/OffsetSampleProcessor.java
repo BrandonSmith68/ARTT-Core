@@ -3,16 +3,20 @@ package edu.unh.artt.core.error_sample.processing;
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.SyncData;
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
 public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     private final static Logger logger = LoggerFactory.getLogger(OffsetSampleProcessor.class);
+
+    private final HashMap<String, Long> network_rep = new HashMap<>();
 
     @Override
     OffsetGmSample computeTimeError(SyncData gmSync, double upstrmPdelay, SyncData revSync, double dwnstrmPdelay) {
@@ -30,14 +34,17 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     }
 
     @Override
-    protected AMTLVData<OffsetGmSample> processAMTLVData(byte[] amtlv) {
+    protected AMTLVData<OffsetGmSample> processAMTLVData(byte [] rxClockId, byte[] amtlv) {
+        long weight = new BigInteger(Arrays.copyOfRange(amtlv, 0, 4)).longValue(); //Want unsigned
         int sampleLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 0, 2)).intValue();
         int outlierLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 2, 4)).intValue();
 
-        if((amtlv.length-4) != outlierLen + sampleLen || (amtlv.length - 4) % 16 != 0) {
+        if((amtlv.length-8) != outlierLen + sampleLen || (amtlv.length - 8) % 16 != 0) {
             logger.error("Failed to process offsetFromGm amtlv because it was incorrectly formatted.");
             return null;
         }
+
+        network_rep.put(Hex.encodeHexString(rxClockId), weight);
 
         List<OffsetGmSample> samples = new LinkedList<>();
         List<OffsetGmSample> outliers = new LinkedList<>();
@@ -48,11 +55,18 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             ((i < sampleLen) ? samples : outliers).add(sample);
         }
 
-        return new AMTLVData<>(samples, outliers);
+        return new AMTLVData<>(weight, rxClockId, samples, outliers);
     }
 
     @Override
-    public AMTLVData<OffsetGmSample> packageAMTLVData(int networkRep, List<OffsetGmSample> outliers, double[][] resampledData) {
+    public long getNetworkRepresentation() {
+        return network_rep.values().stream().mapToLong(Long::longValue).sum(); //Sum of all reported representations
+    }
+
+
+
+    @Override
+    public AMTLVData<OffsetGmSample> packageAMTLVData(long networkRep, List<OffsetGmSample> outliers, double[][] resampledData) {
         //TODO Package these into AMTLV byte arrays
         return null;
     }

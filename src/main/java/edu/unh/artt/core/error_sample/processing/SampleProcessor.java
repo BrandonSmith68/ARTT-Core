@@ -45,7 +45,8 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
         if(gmData != null) {
             Sample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
             sample_consumers.parallelStream().forEach(action->action.accept(sample));
-            amtlv_consumers.parallelStream().forEach(action->action.accept(processAMTLVData(revSyncData.amtlv)));
+            amtlv_consumers.parallelStream().forEach(action->action.accept(
+                    processAMTLVData(revSyncData.clock_identity, revSyncData.amtlv)));
         }
     }
 
@@ -57,8 +58,9 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
         sample_consumers.remove(sampleConsumer);
     }
 
-    protected abstract AMTLVData<Sample> processAMTLVData(byte [] AMTLV);
-    public abstract AMTLVData<Sample> packageAMTLVData(int networkRep, List<Sample> outliers, double [][] resampledData);
+    public abstract long getNetworkRepresentation();
+    protected abstract AMTLVData<Sample> processAMTLVData(byte[] clockId, byte [] AMTLV);
+    public abstract AMTLVData<Sample> packageAMTLVData(long networkRep, List<Sample> outliers, double [][] resampledData);
 
     public final void onAMTLVReceipt(Consumer<AMTLVData<Sample>> amtlvConsumer) {
         amtlv_consumers.add(amtlvConsumer);
