@@ -96,7 +96,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
      * from the previously transmitted model then the model will be resampled and inserted into the AMTLV.
      * @return The newly generated AMTLV.
      */
-    public AMTLVData<Sample> retrieveNewData() {
+    public byte [] retrieveNewData() {
         ArrayList<Sample> outliers = outlier_buffer.getAndSet(new ArrayList<>());
         double[][] samples = (prev_tx_amtlv.get() != null && network_model.shouldResample(prev_tx_amtlv.get()))
                 ? network_model.resample(network_window_size)
@@ -104,10 +104,6 @@ public class Aggregator<Sample extends TimeErrorSample> {
         long totalWeight = num_monitoring_ports + sample_processor.get().getNetworkRepresentation();
         AMTLVData<Sample> amtlvData = sample_processor.get().packageAMTLVData(totalWeight, outliers, samples);
         prev_tx_amtlv.set(amtlvData);
-        return amtlvData;
-    }
-
-    public static void main(String [] args) {
-//        logger.info();
+        return sample_processor.get().amtlvToBytes(amtlvData);
     }
 }

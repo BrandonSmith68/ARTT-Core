@@ -63,12 +63,16 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         return network_rep.values().stream().mapToLong(Long::longValue).sum(); //Sum of all reported representations
     }
 
-
-
     @Override
     public AMTLVData<OffsetGmSample> packageAMTLVData(long networkRep, List<OffsetGmSample> outliers, double[][] resampledData) {
-        //TODO Package these into AMTLV byte arrays
+        //TODO Create an object representation
         return null;
+    }
+
+    @Override
+    public byte[] amtlvToBytes(AMTLVData<OffsetGmSample> amtlv) {
+        //TODO Package these into AMTLV byte arrays
+        return new byte[0];
     }
 
     @Override
