@@ -20,7 +20,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     private final static Logger logger = LoggerFactory.getLogger(OffsetSampleProcessor.class);
 
     /* Scaled nanoseconds: incorporates 2 bytes of sub-nanosecond precision into the transmitted value*/
-    public static final int SCALED_NS_CONVERSION = 2 << 16;
+    public static final int SCALED_NS_CONVERSION = 2 << 15;
 
     /* Record of the network representation values reported by direct link partners (indexed by clockId) */
     private final HashMap<String, Long> network_rep = new HashMap<>();
@@ -157,8 +157,8 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
      */
     @Override
     public List<byte[]> amtlvToBytes(AMTLVData<OffsetGmSample> amtlv, int maxDataFieldSize) {
-        int remainingSampleLength = amtlv.subnetwork_samples.size();
-        int remainingOutlierLength = amtlv.subnetwork_outliers.size();
+        int remainingSampleLength = amtlv.subnetwork_samples.size() * 8; //offset
+        int remainingOutlierLength = amtlv.subnetwork_outliers.size() * 16; //offset + clockId
         int headerSize = 8;
 
         //Make sure we can at least put one sample in
@@ -207,7 +207,10 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
                 OffsetGmSample smpl = outlierIterator.next();
                 long offsetScaled = Math.round(smpl.getSample()[0] * SCALED_NS_CONVERSION);
                 System.arraycopy(ByteBuffer.allocate(8).putLong((offsetScaled)).array(), 0, data, idx, 8);
+                idx+=8;
+
                 System.arraycopy(smpl.getClockIdentity(), 0, data, idx, 8);
+                idx+=8;
             }
         }
 

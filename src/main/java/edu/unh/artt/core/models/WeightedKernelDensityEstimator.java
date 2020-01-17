@@ -44,7 +44,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     @Override
     protected void computeMetrics(LinkedList<Sample> smpls) {
         double [][] samples = new double[num_dimensions][smpls.size()];
-        int [] weights = new int[smpls.size()];
+        long [] weights = new long[smpls.size()];
         int idx = 0;
         for(Sample s : smpls) {
             for(int dim = 0; dim < num_dimensions; dim++)

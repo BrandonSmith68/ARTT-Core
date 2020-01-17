@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -94,9 +95,12 @@ public class Aggregator<Sample extends TimeErrorSample> {
      * Generates a new AMTLV to be transmitted upstream. The current outlier buffer will always be cleared out, with
      * every outlier being placed into the AMTLV. If the supplied error model deems itself to be significantly different
      * from the previously transmitted model then the model will be resampled and inserted into the AMTLV.
-     * @return The newly generated AMTLV.
+     * @param maxDataFieldSize The maximum allowed size of the data field for an AMTLV.
+     *                         See the javadoc for {@link SampleProcessor#amtlvToBytes(AMTLVData, int)} and associated
+     *                         child classes.
+     * @return List of newly generated AMTLVs.
      */
-    public byte [] retrieveNewData() {
+    public List<byte []> retrieveNewData(int maxDataFieldSize) {
         ArrayList<Sample> outliers = outlier_buffer.getAndSet(new ArrayList<>());
         double[][] samples = (prev_tx_amtlv.get() != null && network_model.shouldResample(prev_tx_amtlv.get()))
                 ? network_model.resample(network_window_size)
@@ -104,6 +108,6 @@ public class Aggregator<Sample extends TimeErrorSample> {
         long totalWeight = num_monitoring_ports + sample_processor.get().getNetworkRepresentation();
         AMTLVData<Sample> amtlvData = sample_processor.get().packageAMTLVData(totalWeight, outliers, samples);
         prev_tx_amtlv.set(amtlvData);
-        return sample_processor.get().amtlvToBytes(amtlvData);
+        return sample_processor.get().amtlvToBytes(amtlvData, maxDataFieldSize);
     }
 }
