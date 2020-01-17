@@ -4,26 +4,31 @@ import org.apache.commons.codec.binary.Hex;
 
 import java.util.Random;
 
+/**
+ * Represents the offsetFromGm time error measurement.
+ */
 public class OffsetGmSample implements TimeErrorSample {
-    final long offset_from_gm;
+    final double offset_from_gm;
     final byte [] clock_identity;
-    final int weight;
+    final long weight;
 
-    public OffsetGmSample(int weight, long offsetFromGm, byte [] clockId) {
-        offset_from_gm = offsetFromGm;
+    public OffsetGmSample(long weight, double offsetFromGmScaled) {
+        this(weight, offsetFromGmScaled, null);
+    }
+
+    public OffsetGmSample(long weight, double offsetFromGmScaled, byte [] clockId) {
+        offset_from_gm = offsetFromGmScaled;
         clock_identity = clockId;
         this.weight = weight;
     }
 
-    Random r = new Random();
-
     @Override
     public double[] getSample() {
-        return new double[] {r.nextFloat(), offset_from_gm};
+        return new double[] {offset_from_gm};
     }
 
     @Override
-    public int getWeight() {
+    public long getWeight() {
         return weight;
     }
 
@@ -32,8 +37,12 @@ public class OffsetGmSample implements TimeErrorSample {
         return Hex.encodeHexString(clock_identity);
     }
 
+    public byte [] getClockIdentity() {
+        return clock_identity;
+    }
+
     @Override
     public int getNumDimensions() {
-        return 2;
+        return 1;
     }
 }

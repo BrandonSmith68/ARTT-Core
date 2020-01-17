@@ -100,11 +100,13 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
     public abstract AMTLVData<Sample> packageAMTLVData(long networkRep, List<Sample> outliers, double [][] resampledData);
 
     /**
-     * Converts an AMTLV class to a byte representation for network transmission
+     * Converts an AMTLV class to a byte representation for network transmission. If the data in the AMTLV is larger
+     * than the max frame size then it is segmented into multiple TLVs.
      * @param amtlv AMTLV data
-     * @return The data field of an AMTLV
+     * @param maxDataFieldSize Maximum allowed size for the AMTLV data field
+     * @return A list of byte arrays which are less than or equal to the maximum frame size.
      */
-    public abstract byte [] amtlvToBytes(AMTLVData<Sample> amtlv);
+    public abstract List<byte []> amtlvToBytes(AMTLVData<Sample> amtlv, int maxDataFieldSize);
 
     /**
      * The core method of the SampleProcessor, where information from the grandmaster is compared with the information

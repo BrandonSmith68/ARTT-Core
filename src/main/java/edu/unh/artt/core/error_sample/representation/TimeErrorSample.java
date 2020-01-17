@@ -4,7 +4,7 @@ import java.util.List;
 
 public interface TimeErrorSample {
     double [] getSample();
-    int getWeight();
+    long getWeight();
     String getIdentifier();
     int getNumDimensions();
 }
