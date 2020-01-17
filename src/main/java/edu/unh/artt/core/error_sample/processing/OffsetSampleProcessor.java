@@ -195,7 +195,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             int idx = 8; //Start after the header
 
             //Start by filling samples first
-            while(sampleIterator.hasNext() && idx < data.length) {
+            while(sampleIterator.hasNext() && (idx+8) <= data.length) {
                 OffsetGmSample smpl = sampleIterator.next();
                 long offsetScaled = Math.round(smpl.getSample()[0] * SCALED_NS_CONVERSION);
                 System.arraycopy(ByteBuffer.allocate(8).putLong((offsetScaled)).array(), 0, data, idx, 8);
@@ -203,7 +203,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             }
 
             //Fill the remainder with the outliers
-            while(outlierIterator.hasNext() && idx < data.length) {
+            while(outlierIterator.hasNext() && (idx+16) <= data.length) {
                 OffsetGmSample smpl = outlierIterator.next();
                 long offsetScaled = Math.round(smpl.getSample()[0] * SCALED_NS_CONVERSION);
                 System.arraycopy(ByteBuffer.allocate(8).putLong((offsetScaled)).array(), 0, data, idx, 8);
