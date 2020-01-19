@@ -174,10 +174,10 @@ public class OffsetSampleProcessorTest {
         assertEquals(numOutl * 16, 0xffff&new BigInteger(Arrays.copyOfRange(data, 6, 8)).longValue());
 
         for(int i = 8; i < numSamp * 8; i+= 8)
-            assertEquals(smplOff, new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
+            assertEquals(smplOff, (long)PTPTimestamp.fromScaledNs(new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue()));
 
         for(int i = numSamp * 8 + 8; i < totalSize; i+=16) {
-            assertEquals(outlOff, new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
+            assertEquals(outlOff, (long)PTPTimestamp.fromScaledNs(new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue()));
             assertArrayEquals(outlierId, Arrays.copyOfRange(data, i+8, i+16));
         }
         return networkData;
@@ -202,12 +202,12 @@ public class OffsetSampleProcessorTest {
         for(byte [] data : networkData) {
             int smpls2Chk = new BigInteger(Arrays.copyOfRange(data, 4, 6)).intValue();
             for (int i = 8; i < smpls2Chk; i += 8)
-                assertEquals(smplOff, new BigInteger(Arrays.copyOfRange(data, i, i + 8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
+                assertEquals(smplOff, (long)PTPTimestamp.fromScaledNs(new BigInteger(Arrays.copyOfRange(data, i, i + 8)).longValue()));
             int off = smpls2Chk + 8;
 
             int outls2Chck = new BigInteger(Arrays.copyOfRange(data, 6, 8)).intValue();
             for(int i = off; i < off + outls2Chck; i+=16) {
-                assertEquals(outlOff, new BigInteger(Arrays.copyOfRange(data, i, i + 8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
+                assertEquals(outlOff, (long)PTPTimestamp.fromScaledNs(new BigInteger(Arrays.copyOfRange(data, i, i + 8)).longValue()));
                 assertArrayEquals(outlierId, Arrays.copyOfRange(data, i+8, i+16));
             }
         }

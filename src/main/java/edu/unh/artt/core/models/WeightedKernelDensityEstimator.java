@@ -165,13 +165,13 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         File csv = new File("test.csv");
         FileWriter csvWriter = new FileWriter(csv);
         try {
-            WeightedKernelDensityEstimator<OffsetGmSample> estimator = new WeightedKernelDensityEstimator<>(Integer.valueOf(args[0]), 2);
+            WeightedKernelDensityEstimator<OffsetGmSample> estimator = new WeightedKernelDensityEstimator<>(Integer.parseInt(args[0]), 2);
             Random r = new Random();
-            double mean = Double.valueOf(args[1]);
-            double variance =  Double.valueOf(args[2]);
-            int sampleCount = Integer.valueOf(args[3]);
-            int modes = Integer.valueOf(args[4]);
-            int modeDist = Integer.valueOf(args[5]);
+            double mean = Double.parseDouble(args[1]);
+            double variance =  Double.parseDouble(args[2]);
+            int sampleCount = Integer.parseInt(args[3]);
+            int modes = Integer.parseInt(args[4]);
+            int modeDist = Integer.parseInt(args[5]);
             long min = Long.MAX_VALUE, max = Long.MIN_VALUE;
             samples = new double[modes*sampleCount];
 
@@ -181,8 +181,8 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
                     samples[i + m] = sample;
                     estimator.addSample(new OffsetGmSample((short) ((m + 1)), sample, new byte[8]));
                     csvWriter.write(sample + "," + (m + 1) + "\n");
-                    min = (sample < min) ? sample : min;
-                    max = (sample > max) ? sample : max;
+                    min = Math.min(min, sample);
+                    max = Math.max(max, sample);
                 }
             }
             csvWriter.close();

@@ -2,6 +2,7 @@ package edu.unh.artt.core.error_sample.processing;
 
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
+import edu.unh.artt.core.error_sample.representation.PTPTimestamp;
 import edu.unh.artt.core.error_sample.representation.SyncData;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
@@ -19,9 +20,6 @@ import java.util.stream.Collectors;
 public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     private final static Logger logger = LoggerFactory.getLogger(OffsetSampleProcessor.class);
 
-    /* Scaled nanoseconds: incorporates 2 bytes of sub-nanosecond precision into the transmitted value*/
-    public static final int SCALED_NS_CONVERSION = 2 << 15;
-
     /* Record of the network representation values reported by direct link partners (indexed by clockId) */
     private final HashMap<String, Long> network_rep = new HashMap<>();
 
@@ -38,8 +36,8 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         long t2Gm = gmSync.sync_receipt.getTimestamp();
         long t2Peer = revSync.sync_receipt.getTimestamp();
 
-        double upstrmCorr = new BigInteger(gmSync.correction_field).doubleValue() / SCALED_NS_CONVERSION;
-        double dwnstrmCorr = new BigInteger(revSync.correction_field).doubleValue() / SCALED_NS_CONVERSION;
+        double upstrmCorr = PTPTimestamp.fromScaledNs(new BigInteger(gmSync.correction_field).longValue());
+        double dwnstrmCorr = PTPTimestamp.fromScaledNs(new BigInteger(revSync.correction_field).longValue());
         upstrmCorr += Math.round(upstrmPdelay);
         dwnstrmCorr += Math.round(dwnstrmPdelay);
 
@@ -112,8 +110,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         List<OffsetGmSample> samples = new LinkedList<>();
         List<OffsetGmSample> outliers = new LinkedList<>();
         for(int i = 8; i < amtlv.length; i += 8) {
-            //Convert from scaled nanoseconds to a java double
-            double offset =  new BigInteger(Arrays.copyOfRange(amtlv, i, i+8)).doubleValue() / SCALED_NS_CONVERSION;
+            double offset = PTPTimestamp.fromScaledNs(new BigInteger(Arrays.copyOfRange(amtlv, i, i+8)).longValue());
             if(i >= (sampleLen+8)) { //Parse outliers
                 i += 8;
                 byte [] clockId = Arrays.copyOfRange(amtlv, i, i+8);
@@ -198,7 +195,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             //Start by filling samples first
             while(sampleIterator.hasNext() && (idx+8) <= data.length) {
                 OffsetGmSample smpl = sampleIterator.next();
-                long offsetScaled = Math.round(smpl.getSample()[0] * SCALED_NS_CONVERSION);
+                long offsetScaled = PTPTimestamp.toScaledNs(smpl.getSample()[0]);
                 System.arraycopy(ByteBuffer.allocate(8).putLong((offsetScaled)).array(), 0, data, idx, 8);
                 idx+=8;
             }
@@ -206,7 +203,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             //Fill the remainder with the outliers
             while(outlierIterator.hasNext() && (idx+16) <= data.length) {
                 OffsetGmSample smpl = outlierIterator.next();
-                long offsetScaled = Math.round(smpl.getSample()[0] * SCALED_NS_CONVERSION);
+                long offsetScaled = PTPTimestamp.toScaledNs(smpl.getSample()[0]);
                 System.arraycopy(ByteBuffer.allocate(8).putLong((offsetScaled)).array(), 0, data, idx, 8);
                 idx+=8;
 
