@@ -2,11 +2,15 @@ package edu.unh.artt.core.error_sample.processing;
 
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
+import edu.unh.artt.core.error_sample.representation.PTPTimestamp;
+import edu.unh.artt.core.error_sample.representation.SyncData;
 import org.junit.Test;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -16,7 +20,64 @@ public class OffsetSampleProcessorTest {
 
     @Test
     public void computeTimeError() {
+        AtomicLong gmT1 = new AtomicLong(100), gmT2 = new AtomicLong(200);
+        AtomicLong gmCor = new AtomicLong(50);
+        byte [] gmId = new byte[]{0,(byte) 0xff,(byte) 0xff, (byte)0xff, (byte)0xff, (byte)0xff, (byte)0xff, 0};
 
+        AtomicLong devT1 = new AtomicLong(10), devT2 = new AtomicLong(15);
+        AtomicLong devCor = new AtomicLong(5);
+        byte [] devId = new byte[]{0,(byte) 0x0a,(byte) 0x0a, (byte)0x0a, (byte)0x0a, (byte)0x0a, (byte)0x0a, 0};
+
+        AtomicLong downstreamPdelay = new AtomicLong(5), upstreamPdelay = new AtomicLong(50);
+
+        Runnable checkOffset = () -> {
+            ByteBuffer gmCorrection = ByteBuffer.allocate(10);
+            gmCorrection.putLong(gmCor.get()); //Byte buffer fills up to byte 8, so scaled ns conversion not needed
+
+            ByteBuffer devCorrection = ByteBuffer.allocate(10);
+            devCorrection.putLong(devCor.get());
+
+            SyncData gmData = new SyncData(new PTPTimestamp(gmT1.get()), new PTPTimestamp(gmT2.get()), gmCorrection.array(), gmId, null);
+            SyncData devData = new SyncData(new PTPTimestamp(devT1.get()), new PTPTimestamp(devT2.get()), devCorrection.array(), devId, null);
+
+            OffsetSampleProcessor proc = new OffsetSampleProcessor();
+            OffsetGmSample sample = proc.computeTimeError(gmData, upstreamPdelay.get(), devData, downstreamPdelay.get());
+
+            long realOffset = (devT1.get() - gmT1.get()) + (gmT2.get() - devT2.get());
+            realOffset += (downstreamPdelay.get() + devCor.get()) - (upstreamPdelay.get() + gmCor.get());
+            assertEquals(realOffset, (long)sample.getSample()[0]);
+        };
+
+        checkOffset.run();
+
+        gmCor.set(0);
+        devCor.set(-5);
+
+        checkOffset.run();
+
+        devT2.set(2000);
+        downstreamPdelay.set(1000);
+
+        checkOffset.run();
+
+        devT2.set(gmT2.get());
+        devT1.set(gmT1.get());
+        downstreamPdelay.set(upstreamPdelay.get());
+        devCor.set(gmCor.get());
+
+        checkOffset.run();
+
+        devT2.set(Long.MAX_VALUE >> 16);
+        devT1.set(Long.MIN_VALUE >> 16);
+        downstreamPdelay.set(0);
+        devCor.set(0);
+
+        gmT2.set(Integer.MAX_VALUE);
+        gmT1.set(Integer.MIN_VALUE);
+        upstreamPdelay.set((long)1e9);
+        gmCor.set(-1000);
+
+        checkOffset.run();
     }
 
     @Test
