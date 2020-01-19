@@ -171,13 +171,14 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         do { //Compute the size of each TLV and fill in the headers
             int sampLen = 0, outLen = 0;
             if(remainingSampleLength > 0) { //Compute length of sample data, which has priority
-                sampLen = Math.min(remainingSampleLength, maxDataFieldSize - headerSize);
+                sampLen = Math.min(remainingSampleLength, maxDataFieldSize - (maxDataFieldSize % 8) - headerSize);
                 remainingSampleLength -= sampLen;
             }
 
             //Compute length of outlier data if there is room left in this TLV
             if(sampLen + headerSize < maxDataFieldSize && remainingOutlierLength > 0) {
-                outLen = Math.min(remainingOutlierLength, maxDataFieldSize - sampLen - headerSize);
+                int extSpace =  maxDataFieldSize - sampLen - headerSize;
+                outLen = Math.min(remainingOutlierLength, extSpace - (extSpace % 16));
                 remainingOutlierLength -= outLen;
             }
 

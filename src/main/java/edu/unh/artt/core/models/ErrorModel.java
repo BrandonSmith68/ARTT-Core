@@ -9,7 +9,10 @@ import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
+/**
+ *
+ * @param <Sample>
+ */
 public abstract class ErrorModel<Sample extends TimeErrorSample> {
     private final Logger logger = LoggerFactory.getLogger(ErrorModel.class);
 
@@ -37,11 +40,15 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
         if(sample_window.size() > sample_size)
             sample_window.removeLast();
 
+        if(num_dimensions != sample.getNumDimensions())
+            throw new IllegalArgumentException("Provided sample does not match the dimensionality expected by this " +
+                    "model. Cannot add it to the sample dataset.");
+
         if(sample_window.size() == sample_size) {
             if(!windowFlag.compareAndExchange(false, true))
                 logger.info("Reached moving sample window size ({}). Model estimation has started.", sample_size);
 
-            if(samples_since_last_sent.get() == sample_size)
+            if(samples_since_last_sent.get() >= sample_size)
                 resampleFlag.set(true);
 
             computeMetrics(sample_window);
@@ -61,6 +68,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
 
     public final double[][] resample(int newWindow) {
         resampleFlag.set(false);
+        samples_since_last_sent.set(0);
         return resampleImpl(newWindow);
     }
     protected abstract double[][] resampleImpl(int newWindow);
