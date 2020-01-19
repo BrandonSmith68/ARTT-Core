@@ -21,10 +21,56 @@ public class OffsetSampleProcessorTest {
 
     @Test
     public void processAMTLVData() {
+        int outlWeight = 1, smplWt = 1;
+        byte [] outlierId = new byte[]{0,(byte) 0xff,(byte) 0xff, (byte)0xff, (byte)0xff, (byte)0xff, (byte)0xff, 0};
+        byte [] amtlvId = new byte[]{0,(byte) 0x0a,(byte) 0x0a, (byte)0x0a, (byte)0x0a, (byte)0x0a, (byte)0x0a, 0};
+
+        int [] sizeOpts = new int[] {100, 1500, 0, 4095};
+        long [] offsetOpts = new long[] {-1000L, Integer.MAX_VALUE, Long.MAX_VALUE>>16, Long.MIN_VALUE>>16};
+
+        //Mind as well try all permutations :)
+        for(int numSamp : sizeOpts) {
+            for(int numOutl : sizeOpts) {
+                if(numOutl+numSamp == 0) continue;
+                for(long smplOff : offsetOpts) {
+                    for(long outlOff : offsetOpts) {
+                        byte[] tlv = testAmtlvToBytesHelper(numOutl, numSamp, outlWeight, outlOff, smplOff, smplWt, outlierId).get(0);
+                        OffsetSampleProcessor sampleProcessor = new OffsetSampleProcessor();
+                        AMTLVData<OffsetGmSample> amtlvData = sampleProcessor.processAMTLVData(amtlvId, tlv);
+
+                        assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getSample().length==1 && s.getSample()[0] == smplOff));
+                        assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getWeight() == smplWt));
+                        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->s.getSample().length==1 && s.getSample()[0] == outlOff));
+                        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->s.getWeight() == outlWeight));
+                        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->Arrays.equals(s.getClockIdentity(), outlierId)));
+
+                        assertArrayEquals(amtlvId, amtlvData.clock_id);
+                        assertEquals(smplWt, amtlvData.weight);
+                    }
+                }
+            }
+        }
     }
 
     @Test
     public void packageAMTLVData() {
+        int numOutl = 100, numSamp = 1000, outlWeight = 1, smplWt = 1;
+        long outlOff = -1000, smplOff = 10;
+        byte [] outlierId = new byte[]{0,(byte) 0xff,(byte) 0xff, (byte)0xff, (byte)0xff, (byte)0xff, (byte)0xff, 0};
+        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(outlWeight, outlOff, outlierId)).collect(Collectors.toList());
+        double[][] samples = IntStream.range(0, numSamp).mapToObj(i -> new double[]{smplOff}).toArray(double[][]::new);
+
+        OffsetSampleProcessor processor = new OffsetSampleProcessor();
+        AMTLVData<OffsetGmSample> amtlvData = processor.packageAMTLVData(smplWt, outliers, samples);
+
+        assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getSample().length==1 && s.getSample()[0] == smplOff));
+        assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getWeight() == smplWt));
+        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->s.getSample().length==1 && s.getSample()[0] == outlOff));
+        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->s.getWeight() == outlWeight));
+        assertTrue(amtlvData.subnetwork_outliers.stream().allMatch(s->Arrays.equals(s.getClockIdentity(), outlierId)));
+
+        assertArrayEquals(new byte[8], amtlvData.clock_id);
+        assertEquals(smplWt, amtlvData.weight);
     }
 
     @Test
@@ -46,7 +92,7 @@ public class OffsetSampleProcessorTest {
         testAmtlvToBytesMultiHelper(100, 1, 1600, 0, Long.MAX_VALUE >> 16, -1, 0, outlierId);
     }
 
-    private void testAmtlvToBytesHelper(int numOutl, int numSamp, int outlWeight, long outlOff, long smplOff, int smplWt, byte [] outlierId) {
+    private List<byte[]> testAmtlvToBytesHelper(int numOutl, int numSamp, int outlWeight, long outlOff, long smplOff, int smplWt, byte [] outlierId) {
         int totalSize = numOutl * 16 + numSamp * 8 + 8;
         List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(outlWeight, outlOff, outlierId)).collect(Collectors.toList());
         double[][] samples = IntStream.range(0, numSamp).mapToObj(i -> new double[]{smplOff}).toArray(double[][]::new);
@@ -63,8 +109,8 @@ public class OffsetSampleProcessorTest {
         assertEquals(smplWt, new BigInteger(Arrays.copyOfRange(data, 0, 4)).longValue());
 
         //Check length parsing
-        assertEquals(numSamp * 8, new BigInteger(Arrays.copyOfRange(data, 4, 6)).longValue());
-        assertEquals(numOutl * 16, new BigInteger(Arrays.copyOfRange(data, 6, 8)).longValue());
+        assertEquals(numSamp * 8, 0xffff&new BigInteger(Arrays.copyOfRange(data, 4, 6)).longValue());
+        assertEquals(numOutl * 16, 0xffff&new BigInteger(Arrays.copyOfRange(data, 6, 8)).longValue());
 
         for(int i = 8; i < numSamp * 8; i+= 8)
             assertEquals(smplOff, new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
@@ -73,6 +119,7 @@ public class OffsetSampleProcessorTest {
             assertEquals(outlOff, new BigInteger(Arrays.copyOfRange(data, i, i+8)).longValue() / OffsetSampleProcessor.SCALED_NS_CONVERSION);
             assertArrayEquals(outlierId, Arrays.copyOfRange(data, i+8, i+16));
         }
+        return networkData;
     }
 
     private void testAmtlvToBytesMultiHelper(int maxFrameSize, int numOutl, int numSamp, int outlWeight, long outlOff, long smplOff, int smplWt, byte [] outlierId) {

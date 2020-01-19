@@ -89,8 +89,8 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     @Override
     protected AMTLVData<OffsetGmSample> processAMTLVData(byte [] rxClockId, byte[] amtlv) {
         long weight = new BigInteger(Arrays.copyOfRange(amtlv, 0, 4)).longValue(); //Want unsigned
-        int sampleLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 0, 2)).intValue();
-        int outlierLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 2, 4)).intValue();
+        int sampleLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 4, 6)).intValue();
+        int outlierLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 6, 8)).intValue();
 
         if((amtlv.length-8) != outlierLen + sampleLen || amtlv.length % 8 != 0) {
             logger.error("Failed to process offsetFromGm AMTLV data field because it was incorrectly formatted. The " +
@@ -111,10 +111,10 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
 
         List<OffsetGmSample> samples = new LinkedList<>();
         List<OffsetGmSample> outliers = new LinkedList<>();
-        for(int i = 0; i < amtlv.length; i += 8) {
+        for(int i = 8; i < amtlv.length; i += 8) {
             //Convert from scaled nanoseconds to a java double
-            double offset = new BigInteger(Arrays.copyOfRange(amtlv, i, i+8)).doubleValue() / SCALED_NS_CONVERSION;
-            if(i >= sampleLen) { //Parse outliers
+            double offset =  new BigInteger(Arrays.copyOfRange(amtlv, i, i+8)).doubleValue() / SCALED_NS_CONVERSION;
+            if(i >= (sampleLen+8)) { //Parse outliers
                 i += 8;
                 byte [] clockId = Arrays.copyOfRange(amtlv, i, i+8);
                 outliers.add(new OffsetGmSample(weight, offset, clockId));
