@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -58,17 +59,29 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     /**
      * Adds a new sample to the dataset. If the sample window is >= the max sample size then the oldest value is pushed
      * out of the sample window. The distribution metrics are re-computed when applicable.
-     * @param sample
+     * @param sample Sample to add to the dataset
      */
     public final void addSample(Sample sample) {
-        synchronized (sample_window) { //Samples are likely only added via a single thread, but better safe than sorry
-            sample_window.addFirst(sample);
-            samples_since_last_sent.incrementAndGet();
+        addSamples(List.of(sample));
+    }
 
-            if (sample_window.size() > sample_size)
+    /**
+     * Adds a list of samples to the dataset. If the sample window is >= the max sample size then the oldest values are
+     * pushed out of the sample window. The distribution metrics are re-computed after all samples have been added
+     * @param samples Samples to add to the dataset
+     */
+    public final void addSamples(List<Sample> samples) {
+        if(samples.size() < 1)
+            throw new IllegalArgumentException("Must provide at least 1 sample.");
+
+        synchronized (sample_window) { //Samples are likely only added via a single thread, but better safe than sorry
+            samples.forEach(sample_window::addFirst);
+            samples_since_last_sent.set(samples.size() + samples_since_last_sent.get());
+
+            while (sample_window.size() > sample_size)
                 sample_window.removeLast();
 
-            if (num_dimensions != sample.getNumDimensions())
+            if (samples.get(0).getNumDimensions() != num_dimensions)
                 throw new IllegalArgumentException("Provided sample does not match the dimensionality expected by this " +
                         "model. Cannot add it to the sample dataset.");
 
@@ -116,4 +129,6 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     }
 
     public abstract double estimate(Sample point);
+
+    public abstract double [] estimate(Sample [] pointWindow);
 }

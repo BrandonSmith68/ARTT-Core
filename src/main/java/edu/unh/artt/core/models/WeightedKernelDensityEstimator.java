@@ -3,6 +3,7 @@ package edu.unh.artt.core.models;
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
+import edu.unh.artt.core.outlier.DistanceOutlierDetector;
 import jep.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +14,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
+import java.lang.reflect.Array;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 
 /**
  * Models a time error distribution using a Gaussian weighted kernel density estimator. For the sake of code re-usage
@@ -124,15 +128,32 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      * @see ErrorModel#estimate(TimeErrorSample)
      */
     @Override
+    @SuppressWarnings("unchecked") //Want the array for 1->1 sample mapping to probabilities
     public double estimate(Sample point) {
+        Sample [] smp = (Sample[])Array.newInstance(point.getClass(), 1);
+        smp[0] = point;
+        return this.estimate(smp)[0];
+    }
+
+    /**
+     * Uses the computed pdf to provide the likelihood of each sample in the given range.
+     * @see ErrorModel#estimate(TimeErrorSample[])
+     */
+    @Override
+    public double [] estimate(Sample[] pointWindow) {
+        double [][] samples = new double[num_dimensions][pointWindow.length];
+        for(int i = 0; i < pointWindow.length; i++) {
+            for(int dim = 0; dim < num_dimensions; dim++)
+                samples[dim][i] = pointWindow[i].getSample()[dim];
+        }
         try {
-            kde_wrapper.set("tmp", point.getSample());
+            kde_wrapper.set("tmp", samples);
             kde_wrapper.exec("res = pdf(np.atleast_2d(tmp))");
-            return ((double[])((NDArray) kde_wrapper.getValue("res")).getData())[0];
+            return ((double[])((NDArray) kde_wrapper.getValue("res")).getData());
         } catch (JepException jpe) {
             logger.error("Failed to estimate point", jpe);
         }
-        return 0.0;
+        return new double[1];
     }
 
     /**
@@ -165,7 +186,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         File csv = new File("test.csv");
         FileWriter csvWriter = new FileWriter(csv);
         try {
-            WeightedKernelDensityEstimator<OffsetGmSample> estimator = new WeightedKernelDensityEstimator<>(Integer.parseInt(args[0]), 2);
+            WeightedKernelDensityEstimator<OffsetGmSample> estimator = new WeightedKernelDensityEstimator<>(Integer.parseInt(args[0]), 1);
             Random r = new Random();
             double mean = Double.parseDouble(args[1]);
             double variance =  Double.parseDouble(args[2]);
@@ -187,12 +208,14 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             }
             csvWriter.close();
 
+            DistanceOutlierDetector<OffsetGmSample> outlierDetector = new DistanceOutlierDetector<>(estimator, new double[]{5.}, new double[]{1.}, 5);
             int range = (int)(max - min) + ((int)variance*4);
             distData = new double[range][2];//XY coords
             for(int i = 0; i < range; i++) {
                 long xCoord = i+min-((int)variance*2);
                 distData[i][0] = xCoord;
                 distData[i][1] = estimator.estimate(new OffsetGmSample((short)1, xCoord, new byte[8]));
+                outlierDetector.isOutlier(new OffsetGmSample((short)1, xCoord, new byte[8]));
             }
             estimator.resample(500);
             estimator.shutdown();

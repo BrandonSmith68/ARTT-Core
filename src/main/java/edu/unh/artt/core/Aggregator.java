@@ -85,7 +85,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
         //Process the AMTLVs received on any monitoring port
         proc.onAMTLVReceipt((amtlv) -> {
-            amtlv.subnetwork_samples.forEach(network_model::addSample);
+            network_model.addSamples(amtlv.subnetwork_samples);
             amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> outlier_buffer.get().add(smp));
         });
         sample_processor.set(proc);
