@@ -16,11 +16,24 @@ import java.io.FileWriter;
 import java.util.LinkedList;
 import java.util.Random;
 
+/**
+ * Models a time error distribution using a Gaussian weighted kernel density estimator. For the sake of code re-usage
+ * this class uses the guassian_kde implementation in the scipy python library. This means that this class maintains a
+ * python interpreter that converts the sample data into numpy NDArray instances and develops a probability density
+ * function. There may be a performance implication to this, but it's likely small since the data sets usually contain
+ * less than 10,000 samples.
+ * @see edu.unh.artt.core.models.ErrorModel
+ */
 public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> extends ErrorModel<Sample> {
     private static final Logger logger = LoggerFactory.getLogger(WeightedKernelDensityEstimator.class);
 
+    /* Python interpreter to utilize the gaussian_kde library */
     private final Interpreter kde_wrapper;
 
+    /**
+     * Initializes the python interpreter.
+     * @see ErrorModel#ErrorModel(int, int)
+     */
     public WeightedKernelDensityEstimator(int sampleWindow, int numDim) {
         super(sampleWindow, numDim);
 
@@ -41,6 +54,10 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
+    /**
+     * Computes a new probability density function using the gaussian_kde library.
+     * @see ErrorModel#computeMetrics(LinkedList)
+     */
     @Override
     protected void computeMetrics(LinkedList<Sample> smpls) {
         double [][] samples = new double[num_dimensions][smpls.size()];
@@ -65,12 +82,21 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
+    /**
+     * @see ErrorModel#shouldResample(AMTLVData)
+     */
     @Override
     public boolean shouldResample(AMTLVData<Sample> lastSent) {
         return super.shouldResample(lastSent);
         //TODO Compare the distributions
     }
 
+    /**
+     * Generates a new data set with the same shape as the input data. The pdf is used to generate a new sample set that
+     * matches the computed error distribution.
+     * @param newWindow Size of the generated data set
+     * @return A representative sample data set
+     */
     @Override
     protected double[][] resampleImpl(int newWindow) {
         try {
@@ -93,6 +119,10 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         return new double[0][];
     }
 
+    /**
+     * Uses the computed pdf to provide the likelihood of the given sample.
+     * @see ErrorModel#estimate(TimeErrorSample)
+     */
     @Override
     public double estimate(Sample point) {
         try {
@@ -105,6 +135,9 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         return 0.0;
     }
 
+    /**
+     * Disables the python interpreter
+     */
     @Override
     public void shutdown() {
         try {
@@ -114,6 +147,12 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
+    /**
+     * Simple utility to test out the weighted kernel density estimator and provide visual plots. Data sets following an
+     * 'm' modal gaussian distribution are generated and then added to the weighted density estimator. The weight of
+     * a sample data point is simply the mode it's 'part of' (for the sake of visualizing the weights). The generated
+     * plot compares the actual data with the computed pdf. The true data is also logged to a .csv file.
+     */
     public static void main(String[] args) throws Exception {
         String usage = "Usage: <window size> <mean> <variance> <num_samples> <num_modes> <mode distance>";
         if(args.length != 6) {
