@@ -12,7 +12,7 @@ public class ErrorModelTest {
     @Test
     public void addSample() {
         int sampleSize = 100;
-        ErrorModel<OffsetGmSample> model = new ErrorModel<OffsetGmSample>(sampleSize, 1 ) {
+        ErrorModel<OffsetGmSample> model = new ErrorModel<>(sampleSize, 1 ) {
             @Override
             public void shutdown() {}
             @Override
@@ -21,6 +21,14 @@ public class ErrorModelTest {
             protected double[][] resampleImpl(int newWindow) {return new double[0][]; }
             @Override
             public double estimate(OffsetGmSample point) {return 0; }
+            @Override
+            public double[] estimate(OffsetGmSample[] pointWindow) {return new double[0];}
+            @Override
+            public double[] getMean() {return new double[0]; }
+            @Override
+            public double[] getVariance() {return new double[0];}
+            @Override
+            public double[] getStandardDeviation() {return new double[0];}
         };
 
         assertEquals(sampleSize, model.getLocalWindowSize());

@@ -3,8 +3,9 @@ package edu.unh.artt.core.models;
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
 import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
-import edu.unh.artt.core.outlier.DistanceOutlierDetector;
 import jep.*;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import smile.plot.Histogram;
@@ -15,11 +16,9 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
-import java.util.stream.Stream;
 
 /**
  * Models a time error distribution using a Gaussian weighted kernel density estimator. For the sake of code re-usage
@@ -35,6 +34,19 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     /* Python interpreter to utilize the gaussian_kde library */
     private final Interpreter kde_wrapper;
 
+    /* Used to keep track of the statistics most recently computed */
+    private final double[] averages, variances;
+
+    static {
+        try {
+            JepConfig conf = new JepConfig();
+            conf.setRedirectOutputStreams(true);
+            SharedInterpreter.setConfig(conf);
+        } catch (JepException jpe) {
+            logger.error("Failed to set JEP config", jpe);
+        }
+    }
+
     /**
      * Initializes the python interpreter.
      * @see ErrorModel#ErrorModel(int, int)
@@ -42,17 +54,16 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     public WeightedKernelDensityEstimator(int sampleWindow, int numDim) {
         super(sampleWindow, numDim);
 
+        averages = new double[numDim];
+        variances = new double[numDim];
+
         try {
-            JepConfig conf = new JepConfig();
-            conf.setRedirectOutputStreams(true);
-            SharedInterpreter.setConfig(conf);
             kde_wrapper = new SharedInterpreter();
 
             //Setup libraries
             kde_wrapper.exec("import numpy as np");
             kde_wrapper.exec("from scipy import stats");
             kde_wrapper.exec("from scipy.spatial.distance import cdist");
-            logger.info("Got here");
         } catch (JepException jpe) {
             logger.error("Failed to initialize python interpreter.");
             throw new IllegalStateException(jpe);
@@ -68,10 +79,21 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         double [][] samples = new double[num_dimensions][smpls.size()];
         long [] weights = new long[smpls.size()];
         int idx = 0;
+
+        //Transpose the sample array so the major index is the dimension
         for(Sample s : smpls) {
             for(int dim = 0; dim < num_dimensions; dim++)
                 samples[dim][idx] = s.getSample()[dim];
             weights[idx++] = s.getWeight();
+        }
+
+        Variance varCalc = new Variance();
+        Mean mean = new Mean();
+        synchronized (averages) {
+            for (int i = 0; i < num_dimensions; i++) {
+                averages[i] = mean.evaluate(samples[i]);
+                variances[i] = varCalc.evaluate(samples[i]);
+            }
         }
 
         try {
@@ -157,6 +179,28 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         return new double[1];
     }
 
+    @Override
+    public double[] getMean() {
+        synchronized (averages) {
+            return Arrays.copyOf(averages, averages.length);
+        }
+    }
+
+    @Override
+    public double[] getVariance() {
+        synchronized (averages) {
+            return Arrays.copyOf(variances, variances.length);
+        }
+    }
+
+    @Override
+    public double[] getStandardDeviation() {
+        double [] stdevs = getVariance();
+        for(int i = 0; i < stdevs.length; i++)
+            stdevs[i] = Math.sqrt(stdevs[i]);
+        return stdevs;
+    }
+
     /**
      * Disables the python interpreter
      */
@@ -209,18 +253,13 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             }
             csvWriter.close();
 
-            DistanceOutlierDetector<OffsetGmSample> outlierDetector = new DistanceOutlierDetector<>(estimator, new double[]{5.}, new double[]{1.}, 10);
             int range = (int)(max - min) + ((int)variance*4);
             distData = new double[range][2];//XY coords
             for(int i = 0; i < range; i++) {
                 long xCoord = i+min-((int)variance*2);
                 distData[i][0] = xCoord;
                 distData[i][1] = estimator.estimate(new OffsetGmSample((short)1, xCoord, new byte[8]));
-                if(outlierDetector.isOutlier(new OffsetGmSample((short)1, xCoord, new byte[8])))
-                    logger.info(xCoord+"");
             }
-            if(outlierDetector.isOutlier(new OffsetGmSample((short)1, 1000, new byte[8])))
-                logger.info(1000+"");
             estimator.resample(500);
             estimator.shutdown();
         } catch(NumberFormatException nfe) {

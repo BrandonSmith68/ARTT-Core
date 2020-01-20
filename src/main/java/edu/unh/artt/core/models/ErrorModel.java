@@ -5,7 +5,6 @@ import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -157,4 +156,10 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
      * @return Likelihood of each sample, corresponding to the same indices as the given array
      */
     public abstract double [] estimate(Sample[] pointWindow);
+
+    public abstract double [] getMean();
+
+    public abstract double [] getVariance();
+
+    public abstract double [] getStandardDeviation();
 }
