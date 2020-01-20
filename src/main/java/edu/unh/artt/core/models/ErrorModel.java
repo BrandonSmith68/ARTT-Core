@@ -118,18 +118,43 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
      */
     protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
+    /**
+     * Generates a new data set with the same shape as the input data. This should be used when generating an AMTLV to
+     * be sent upstream. This allows for a larger sample window to be maintained locally, while maintaining the ability
+     * to send a smaller data set that is representative of the error distribution.
+     * @param newWindow Size of the newly generated data set
+     * @return New data set representative of the time error distribution
+     */
     public final double[][] resample(int newWindow) {
+        if(newWindow < 1)
+            throw new IllegalArgumentException("Size of re-sampled data set must be greater than 0.");
         resampleFlag.set(false);
         samples_since_last_sent.set(0);
         return resampleImpl(newWindow);
     }
     protected abstract double[][] resampleImpl(int newWindow);
 
+    /**
+     * Used to limit the rate at which new models are transmitted upstream. Default implementation just waits until
+     * the sample window has completely refreshed since last resample.
+     * @param lastSent Previously transmitted AMTLV. This is for more advanced comparisons of the distributions
+     * @return Recommendation of whether or not the model should be re-sampled for distribution
+     */
     public boolean shouldResample(AMTLVData<Sample> lastSent) {
         return resampleFlag.get();
     }
 
+    /**
+     * Uses the computed probability density function to estimate the likelihood of the given point.
+     * @param point Sample
+     * @return Likelihood of the sample
+     */
     public abstract double estimate(Sample point);
 
+    /**
+     * Uses the computed probability density function to estimate the likelihood of each given point.
+     * @param pointWindow Sample set
+     * @return Likelihood of each sample, corresponding to the same indices as the given array
+     */
     public abstract double [] estimate(Sample[] pointWindow);
 }
