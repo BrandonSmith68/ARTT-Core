@@ -15,6 +15,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -208,15 +209,18 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             }
             csvWriter.close();
 
-            DistanceOutlierDetector<OffsetGmSample> outlierDetector = new DistanceOutlierDetector<>(estimator, new double[]{5.}, new double[]{1.}, 5);
+            DistanceOutlierDetector<OffsetGmSample> outlierDetector = new DistanceOutlierDetector<>(estimator, new double[]{5.}, new double[]{1.}, 10);
             int range = (int)(max - min) + ((int)variance*4);
             distData = new double[range][2];//XY coords
             for(int i = 0; i < range; i++) {
                 long xCoord = i+min-((int)variance*2);
                 distData[i][0] = xCoord;
                 distData[i][1] = estimator.estimate(new OffsetGmSample((short)1, xCoord, new byte[8]));
-                outlierDetector.isOutlier(new OffsetGmSample((short)1, xCoord, new byte[8]));
+                if(outlierDetector.isOutlier(new OffsetGmSample((short)1, xCoord, new byte[8])))
+                    logger.info(xCoord+"");
             }
+            if(outlierDetector.isOutlier(new OffsetGmSample((short)1, 1000, new byte[8])))
+                logger.info(1000+"");
             estimator.resample(500);
             estimator.shutdown();
         } catch(NumberFormatException nfe) {

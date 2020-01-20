@@ -2,7 +2,10 @@ package edu.unh.artt.core.error_sample.representation;
 
 import org.apache.commons.codec.binary.Hex;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 /**
  * Represents the offsetFromGm time error measurement. This is the result of a comparison between received Sync messages
@@ -35,6 +38,11 @@ public class OffsetGmSample implements TimeErrorSample {
         offset_from_gm = offsetFromGmScaled;
         clock_identity = clockId;
         this.weight = weight;
+    }
+
+    @Override
+    public List<OffsetGmSample> parseSamples(List<double[]> sampleData) {
+        return sampleData.stream().map(darr -> new OffsetGmSample(1, darr[0])).collect(Collectors.toList());
     }
 
     /**

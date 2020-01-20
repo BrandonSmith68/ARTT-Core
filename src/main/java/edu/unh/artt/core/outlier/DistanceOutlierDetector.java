@@ -4,6 +4,7 @@ import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import edu.unh.artt.core.models.ErrorModel;
 import smile.math.distance.EuclideanDistance;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,9 +56,10 @@ public class DistanceOutlierDetector<Sample extends TimeErrorSample> extends Out
                 range[0][i] += increment_amount[i];
         } while(euclid_util.d(range[0], range[1]) > 0);
 
+        double[] probs = reference_model.estimate(sample.parseSamples(testSamples).toArray((Sample[]) Array.newInstance(sample.getClass(), 1)));
+        double sum = Arrays.stream(probs).sum();
+        double neighborCount = reference_model.getLocalWindowSize() * sum;
 
-        //TODO Convert sample data to TimeErrorSamples for model estimation
-
-        return false;
+        return neighborCount < neighbor_threshold;
     }
 }
