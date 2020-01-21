@@ -78,8 +78,9 @@ public class Aggregator<Sample extends TimeErrorSample> {
         //Process the results of the comparison between the observer port and monitor ports.
         proc.registerErrorComputeAction((sample -> {
             network_model.addSample(sample);
+            System.out.println(sample.getSample()[0]);
 
-            if(network_outlier_detector.isOutlier(sample))
+            if(network_model.hasReachedMinSampleWindow() && network_outlier_detector.isOutlier(sample))
                 outlier_buffer.get().add(sample);
         }));
 
@@ -109,5 +110,10 @@ public class Aggregator<Sample extends TimeErrorSample> {
         AMTLVData<Sample> amtlvData = sample_processor.get().packageAMTLVData(totalWeight, outliers, samples);
         prev_tx_amtlv.set(amtlvData);
         return sample_processor.get().amtlvToBytes(amtlvData, maxDataFieldSize);
+    }
+
+    public void stopAggregation() {
+
+        network_model.shutdown();
     }
 }

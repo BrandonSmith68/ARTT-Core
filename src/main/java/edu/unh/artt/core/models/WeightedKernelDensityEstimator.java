@@ -19,6 +19,10 @@ import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Models a time error distribution using a Gaussian weighted kernel density estimator. For the sake of code re-usage
@@ -32,19 +36,52 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     private static final Logger logger = LoggerFactory.getLogger(WeightedKernelDensityEstimator.class);
 
     /* Python interpreter to utilize the gaussian_kde library */
-    private final Interpreter kde_wrapper;
+    private final static AtomicReference<Interpreter> kde_wrapper = new AtomicReference<>();
+    private final static ExecutorService python_executor = Executors.newFixedThreadPool(1);
 
     /* Used to keep track of the statistics most recently computed */
     private final double[] averages, variances;
 
-    static {
+    private final String weightVar = "weights" + getUniqueID(),
+                         sampleVar = "samples" + getUniqueID(),
+                         pdfVar = "pdf" + getUniqueID(),
+                         resampleVar = "newSamples" + getUniqueID();
+
+    private static void getInterpreterAccess(int timeout, TimeUnit unit, Consumer<Interpreter> pythonInterpreter) {
+        CountDownLatch latch = new CountDownLatch(1);
+        python_executor.execute(() -> {
+            try {
+                if (kde_wrapper.get() == null) { //Runs on a single thread, no race conditions for setting kde_wrapper.
+                    JepConfig conf = new JepConfig();
+                    conf.setRedirectOutputStreams(true);
+                    SharedInterpreter.setConfig(conf);
+                    kde_wrapper.set(new SharedInterpreter());
+
+                    Interpreter wrapper = kde_wrapper.get();
+                    //Setup libraries
+                    wrapper.exec("import numpy as np");
+                    wrapper.exec("from scipy import stats");
+                    wrapper.exec("from scipy.spatial.distance import cdist");
+                }
+                pythonInterpreter.accept(kde_wrapper.get());
+            } catch (JepException jep) {
+                logger.error("Failed to enable access to python interpreter.", jep);
+                throw new IllegalStateException(jep);
+            } finally {
+                latch.countDown();
+            }
+        });
         try {
-            JepConfig conf = new JepConfig();
-            conf.setRedirectOutputStreams(true);
-            SharedInterpreter.setConfig(conf);
-        } catch (JepException jpe) {
-            logger.error("Failed to set JEP config", jpe);
+            if (!latch.await(timeout, unit))
+                throw new IllegalStateException("Failed to provide interpreter access: timed out while waiting for " +
+                        "commands to complete.");
+        } catch (InterruptedException ie) {
+            throw new IllegalStateException(ie);
         }
+    }
+
+    private final int getUniqueID() {
+        return System.identityHashCode(this);
     }
 
     /**
@@ -56,18 +93,6 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
 
         averages = new double[numDim];
         variances = new double[numDim];
-
-        try {
-            kde_wrapper = new SharedInterpreter();
-
-            //Setup libraries
-            kde_wrapper.exec("import numpy as np");
-            kde_wrapper.exec("from scipy import stats");
-            kde_wrapper.exec("from scipy.spatial.distance import cdist");
-        } catch (JepException jpe) {
-            logger.error("Failed to initialize python interpreter.");
-            throw new IllegalStateException(jpe);
-        }
     }
 
     /**
@@ -87,26 +112,26 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             weights[idx++] = s.getWeight();
         }
 
-        Variance varCalc = new Variance();
-        Mean mean = new Mean();
         synchronized (averages) {
             for (int i = 0; i < num_dimensions; i++) {
-                averages[i] = mean.evaluate(samples[i]);
-                variances[i] = varCalc.evaluate(samples[i]);
+                averages[i] =  new Mean().evaluate(samples[i]);
+                variances[i] = new Variance().evaluate(samples[i]);
             }
         }
 
-        try {
-            kde_wrapper.set("weights", weights);
-            kde_wrapper.set("samples", samples);
-            kde_wrapper.exec("weights = np.atleast_1d(weights)");
-            kde_wrapper.exec("samples = np.atleast_2d(samples)");
+        getInterpreterAccess(1, TimeUnit.HOURS, (wrapper) -> {
+            try {
+                wrapper.set(weightVar, weights);
+                wrapper.set(sampleVar, samples);
+                wrapper.exec(weightVar + " = np.atleast_1d(" + weightVar + ")");
+                wrapper.exec(sampleVar + " = np.atleast_2d(" + sampleVar + ")");
 
-            kde_wrapper.exec("pdf = stats.gaussian_kde(samples)");
-        } catch(JepException jpe) {
-            logger.error("Failed to transfer shared memory", jpe);
-            throw new IllegalStateException();
-        }
+                wrapper.exec(pdfVar + " = stats.gaussian_kde(" + sampleVar + ")");
+            } catch(JepException jpe) {
+                logger.error("Failed to transfer shared memory", jpe);
+                throw new IllegalStateException(jpe);
+            }
+        });
     }
 
     /**
@@ -126,36 +151,34 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      */
     @Override
     protected double[][] resampleImpl(int newWindow) {
-        try {
-            if(kde_wrapper.getValue("pdf") != null) {
-                kde_wrapper.exec("newsamples = pdf.resample(size= " + newWindow + ")");
-                double[] newSamples = ((NDArray<double[]>) kde_wrapper.getValue("newsamples")).getData();
-                if(newSamples.length != newWindow*num_dimensions)
-                    throw new IllegalStateException("Attempted to resample previously computed KDE, but observed a " +
-                            "mismatch in dimensionality.");
-
-                double [][] split = new double[newWindow][num_dimensions];
-                for(int i = 0; i < newSamples.length; i++)
-                    split[i%newWindow][i/newWindow] = newSamples[i];
-                return split;
+        AtomicReference<double[]> newSamples = new AtomicReference<>();
+        AtomicBoolean sawPDF = new AtomicBoolean(false);
+        getInterpreterAccess(1, TimeUnit.HOURS, (wrapper) -> {
+            try {
+                sawPDF.set(wrapper.getValue(pdfVar) != null);
+                if(sawPDF.get()) {
+                    wrapper.exec(resampleVar + " = " + pdfVar + ".resample(size= " + newWindow + ")");
+                    newSamples.set(((NDArray<double[]>) wrapper.getValue(resampleVar)).getData());
+                }
+            } catch(JepException | ClassCastException jpe) {
+                logger.error("Failed to transfer shared memory", jpe);
+                throw new IllegalStateException();
             }
-        } catch(JepException | ClassCastException jpe) {
-            logger.error("Failed to transfer shared memory", jpe);
-            throw new IllegalStateException();
-        }
-        return new double[0][];
-    }
+        });
 
-    /**
-     * Uses the computed pdf to provide the likelihood of the given sample.
-     * @see ErrorModel#estimate(TimeErrorSample)
-     */
-    @Override
-    @SuppressWarnings("unchecked") //Want the array for 1->1 sample mapping to probabilities
-    public double estimate(Sample point) {
-        Sample [] smp = (Sample[])Array.newInstance(point.getClass(), 1);
-        smp[0] = point;
-        return this.estimate(smp)[0];
+        if(sawPDF.get()) {
+            double[] newSmps = newSamples.get();
+            if (newSmps.length != newWindow * num_dimensions)
+                throw new IllegalStateException("Attempted to resample previously computed KDE, but observed a " +
+                        "mismatch in dimensionality.");
+
+            double[][] split = new double[newWindow][num_dimensions];
+            for (int i = 0; i < newSmps.length; i++)
+                split[i % newWindow][i / newWindow] = newSmps[i];
+            return split;
+        }
+
+        return new double[0][];
     }
 
     /**
@@ -169,14 +192,20 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             for(int dim = 0; dim < num_dimensions; dim++)
                 samples[dim][i] = pointWindow[i].getSample()[dim];
         }
-        try {
-            kde_wrapper.set("tmp", samples);
-            kde_wrapper.exec("res = pdf(np.atleast_2d(tmp))");
-            return ((double[])((NDArray) kde_wrapper.getValue("res")).getData());
-        } catch (JepException jpe) {
-            logger.error("Failed to estimate point", jpe);
-        }
-        return new double[1];
+
+        AtomicReference<double[]> estimate = new AtomicReference<>(new double[1]);
+        getInterpreterAccess(1, TimeUnit.HOURS, wrapper -> {
+            try {
+                //The tmp and res variables can be shared between threads
+                wrapper.set("tmp", samples);
+                wrapper.exec("res = " + pdfVar + "(np.atleast_2d(tmp))");
+                estimate.set((double[])((NDArray) wrapper.getValue("res")).getData());
+            } catch (JepException jpe) {
+                logger.error("Failed to estimate point", jpe);
+            }
+        });
+
+        return estimate.get();
     }
 
     @Override
@@ -206,11 +235,16 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      */
     @Override
     public void shutdown() {
-        try {
-            kde_wrapper.close();
-        } catch (JepException jpe) {
-            logger.error("Failed to shutdown python interpreter", jpe);
-        }
+        getInterpreterAccess(1,TimeUnit.MINUTES, interpreter -> {
+            try {
+                interpreter.exec(pdfVar + " = None");
+                interpreter.exec(sampleVar + " = None");
+                interpreter.exec(resampleVar + " = None");
+                interpreter.exec(weightVar + " = None");
+            } catch (JepException jpe) {
+                logger.error("Failed to shutdown python interpreter", jpe);
+            }
+        });
     }
 
     /**

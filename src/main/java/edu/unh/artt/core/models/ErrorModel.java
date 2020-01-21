@@ -5,6 +5,7 @@ import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Array;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -143,12 +144,19 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
         return resampleFlag.get();
     }
 
+    public boolean hasReachedMinSampleWindow() { return windowFlag.get(); }
+
     /**
      * Uses the computed probability density function to estimate the likelihood of the given point.
      * @param point Sample
      * @return Likelihood of the sample
      */
-    public abstract double estimate(Sample point);
+    @SuppressWarnings("unchecked") //Want the array for 1->1 sample mapping to probabilities
+    public double estimate(Sample point) {
+        Sample [] smp = (Sample[]) Array.newInstance(point.getClass(), 1);
+        smp[0] = point;
+        return this.estimate(smp)[0];
+    }
 
     /**
      * Uses the computed probability density function to estimate the likelihood of each given point.
