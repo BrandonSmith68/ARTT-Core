@@ -1,6 +1,7 @@
 package edu.unh.artt.core.error_sample.processing;
 
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
+import edu.unh.artt.core.error_sample.representation.PTPTimestamp;
 import edu.unh.artt.core.error_sample.representation.SyncData;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import org.apache.commons.codec.binary.Hex;
@@ -34,7 +35,10 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
     private final Vector<Consumer<AMTLVData<Sample>>> amtlv_consumers = new Vector<>();
 
     /* Represents the sync message received most recently from the grandmaster. */
-    private final AtomicReference<GmData> most_recent_meas = new AtomicReference<>();
+    //Initialized with values of 0. If the device operating is the grandmaster, only reverse Syncs are needed.
+    private final AtomicReference<GmData> most_recent_meas = new AtomicReference<>(
+            new GmData(new SyncData(new PTPTimestamp(0), new PTPTimestamp(0), new byte[10], new byte[8],
+                    null),0, new byte[8]));
     private class GmData {
         final SyncData sync_data;
         final double mean_path_delay;
@@ -45,6 +49,14 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
             mean_path_delay = pdelay;
             gm_id = id;
         }
+    }
+
+    /**
+     * Unregisters all processing actions.
+     */
+    public final void stopProcessing() {
+        sample_consumers.clear();
+        amtlv_consumers.clear();
     }
 
     /**

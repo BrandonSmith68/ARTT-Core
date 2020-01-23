@@ -10,7 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Implements the AMTLV Combination algorithm. The algorithm computes the time error of a node's direct link partners,
@@ -27,7 +29,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
     final static Logger logger = LoggerFactory.getLogger(Aggregator.class);
 
     /* Model used to represent the distribution of the visible network */
-    private final ErrorModel<Sample> network_model;
+    public final ErrorModel<Sample> network_model;
     /* Outlier detection methodology used for constructing the outlier list */
     private final OutlierDetector<Sample> network_outlier_detector;
     /* Core processing unit of the information received on both monitoring and observation ports */
@@ -40,6 +42,9 @@ public class Aggregator<Sample extends TimeErrorSample> {
     private final AtomicReference<ArrayList<Sample>> outlier_buffer;
     /* Most recently transmitted AMTLV */
     private final AtomicReference<AMTLVData<Sample>> prev_tx_amtlv = new AtomicReference<>();
+
+    /* Callback run when a new outlier has been detected */
+    private final Vector<Consumer<Sample>> outlier_receipt_callbacks = new Vector<>();
 
     /**
      * @param processor Instance used to process information received on both observation and monitoring ports
@@ -78,10 +83,11 @@ public class Aggregator<Sample extends TimeErrorSample> {
         //Process the results of the comparison between the observer port and monitor ports.
         proc.registerErrorComputeAction((sample -> {
             network_model.addSample(sample);
-            System.out.println(sample.getSample()[0]);
 
-            if(network_model.hasReachedMinSampleWindow() && network_outlier_detector.isOutlier(sample))
+            if(network_model.hasReachedMinSampleWindow() && network_outlier_detector.isOutlier(sample)) {
+                outlier_receipt_callbacks.forEach(c -> c.accept(sample));
                 outlier_buffer.get().add(sample);
+            }
         }));
 
         //Process the AMTLVs received on any monitoring port
@@ -112,8 +118,17 @@ public class Aggregator<Sample extends TimeErrorSample> {
         return sample_processor.get().amtlvToBytes(amtlvData, maxDataFieldSize);
     }
 
-    public void stopAggregation() {
+    public void registerOutlierReceiptCallback(Consumer<Sample> callback) {
+        outlier_receipt_callbacks.add(callback);
+    }
 
+    public void unregisterOutlierReceiptCallback(Consumer<Sample> callback) {
+        outlier_receipt_callbacks.remove(callback);
+    }
+
+    public void stopAggregation() {
         network_model.shutdown();
+        sample_processor.get().stopProcessing();
+        outlier_receipt_callbacks.clear();
     }
 }

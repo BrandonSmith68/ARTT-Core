@@ -81,7 +81,11 @@ public class DistanceOutlierDetector<Sample extends TimeErrorSample> extends Out
         for(int m = 0; m < 2; m++) {
             range[m] = new double[smp.length];
             for (int i = 0; i < smp.length; i++) {
-                double dist = stdevs[i] * ((m == 0) ? -1 : 1); //+/- the standard deviation
+                //If the standard deviation is very large the number of samples to estimate grows rapidly and will
+                //subsequently pin down 1 or more processors and render the mechanism useless. In the worst case just
+                //use a percentage of the local window size.
+                double rng = (stdevs[i] > reference_model.getLocalWindowSize()) ? reference_model.getLocalWindowSize() * 0.25 : stdevs[i];
+                double dist = rng * ((m == 0) ? -1 : 1); //+/- the standard deviation
                 range[m][i] = smp[i] + dist;
             }
         }

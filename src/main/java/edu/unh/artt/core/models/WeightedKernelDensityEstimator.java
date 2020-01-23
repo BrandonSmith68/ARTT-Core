@@ -47,8 +47,10 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
                          pdfVar = "pdf" + getUniqueID(),
                          resampleVar = "newSamples" + getUniqueID();
 
-    private static void getInterpreterAccess(int timeout, TimeUnit unit, Consumer<Interpreter> pythonInterpreter) {
+    private static void getInterpreterAccess(Consumer<Interpreter> pythonInterpreter) {
         CountDownLatch latch = new CountDownLatch(1);
+        long timeout = 10; //TODO This will depend on the sample size, but most operations should be able to run within 10s
+        TimeUnit unit = TimeUnit.SECONDS;
         python_executor.execute(() -> {
             try {
                 if (kde_wrapper.get() == null) { //Runs on a single thread, no race conditions for setting kde_wrapper.
@@ -80,7 +82,10 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
-    private final int getUniqueID() {
+    /**
+     * @return A unique ID used to separate PDF functions between class instances.
+     */
+    private int getUniqueID() {
         return System.identityHashCode(this);
     }
 
@@ -119,7 +124,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             }
         }
 
-        getInterpreterAccess(1, TimeUnit.HOURS, (wrapper) -> {
+        getInterpreterAccess((wrapper) -> {
             try {
                 wrapper.set(weightVar, weights);
                 wrapper.set(sampleVar, samples);
@@ -153,7 +158,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     protected double[][] resampleImpl(int newWindow) {
         AtomicReference<double[]> newSamples = new AtomicReference<>();
         AtomicBoolean sawPDF = new AtomicBoolean(false);
-        getInterpreterAccess(1, TimeUnit.HOURS, (wrapper) -> {
+        getInterpreterAccess( (wrapper) -> {
             try {
                 sawPDF.set(wrapper.getValue(pdfVar) != null);
                 if(sawPDF.get()) {
@@ -187,6 +192,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      */
     @Override
     public double [] estimate(Sample[] pointWindow) {
+
         double [][] samples = new double[num_dimensions][pointWindow.length];
         for(int i = 0; i < pointWindow.length; i++) {
             for(int dim = 0; dim < num_dimensions; dim++)
@@ -194,7 +200,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
 
         AtomicReference<double[]> estimate = new AtomicReference<>(new double[1]);
-        getInterpreterAccess(1, TimeUnit.HOURS, wrapper -> {
+        getInterpreterAccess(wrapper -> {
             try {
                 //The tmp and res variables can be shared between threads
                 wrapper.set("tmp", samples);
@@ -208,6 +214,9 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         return estimate.get();
     }
 
+    /**
+     * @see ErrorModel#getMean()
+     */
     @Override
     public double[] getMean() {
         synchronized (averages) {
@@ -215,6 +224,9 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
+    /**
+     * @see ErrorModel#getVariance()
+     */
     @Override
     public double[] getVariance() {
         synchronized (averages) {
@@ -222,6 +234,9 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
+    /**
+     * @see ErrorModel#getStandardDeviation()
+     */
     @Override
     public double[] getStandardDeviation() {
         double [] stdevs = getVariance();
@@ -235,7 +250,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      */
     @Override
     public void shutdown() {
-        getInterpreterAccess(1,TimeUnit.MINUTES, interpreter -> {
+        getInterpreterAccess(interpreter -> {
             try {
                 interpreter.exec(pdfVar + " = None");
                 interpreter.exec(sampleVar + " = None");

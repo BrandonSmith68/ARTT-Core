@@ -27,7 +27,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     private final Logger logger = LoggerFactory.getLogger(ErrorModel.class);
 
     /* LinkedList for a simple queue. Always need to access all elements anyways */
-    protected final LinkedList<Sample> sample_window;
+    public final LinkedList<Sample> sample_window;
     /* Size of the data set maintained for the distribution (not the same as the network sample size) */
     protected volatile int sample_size;
     /* Expected number of dimensions for the input data */
