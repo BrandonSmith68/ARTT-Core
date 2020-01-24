@@ -126,6 +126,11 @@ public class Aggregator<Sample extends TimeErrorSample> {
         outlier_receipt_callbacks.remove(callback);
     }
 
+    public void clearData() {
+        outlier_buffer.get().clear();
+        network_model.sample_window.clear();
+    }
+
     public void stopAggregation() {
         network_model.shutdown();
         sample_processor.get().stopProcessing();
