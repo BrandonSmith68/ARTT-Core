@@ -16,7 +16,7 @@ public class ErrorModelTest {
             @Override
             public void shutdown() {}
             @Override
-            protected void computeMetrics(LinkedList<OffsetGmSample> sampleIterator) {}
+            public void computeMetrics(LinkedList<OffsetGmSample> sampleIterator) {}
             @Override
             protected double[][] resampleImpl(int newWindow) {return new double[0][]; }
             @Override

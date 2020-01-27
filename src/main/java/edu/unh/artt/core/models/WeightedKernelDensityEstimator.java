@@ -105,7 +105,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      * @see ErrorModel#computeMetrics(LinkedList)
      */
     @Override
-    protected void computeMetrics(LinkedList<Sample> smpls) {
+    public void computeMetrics(LinkedList<Sample> smpls) {
         double [][] samples = new double[num_dimensions][smpls.size()];
         long [] weights = new long[smpls.size()];
         int idx = 0;
@@ -260,6 +260,23 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
                 logger.error("Failed to shutdown python interpreter", jpe);
             }
         });
+    }
+
+    public static class WeightedDistribComp {
+        public final double divergence, mean_diff, std_dev_diff, max_diff, min_diff;
+
+        public WeightedDistribComp(double divg, double mean, double stddev, double max, double min) {
+            divergence = divg;
+            mean_diff = mean;
+            std_dev_diff = stddev;
+            max_diff = max;
+            min_diff = min;
+        }
+    }
+
+    public static <T extends TimeErrorSample> WeightedDistribComp compare(WeightedKernelDensityEstimator<T> est1, WeightedKernelDensityEstimator<T> est2) {
+       //TODO Jensen-Shannon divergence
+        return new WeightedDistribComp(0,0,0,0,0);
     }
 
     /**

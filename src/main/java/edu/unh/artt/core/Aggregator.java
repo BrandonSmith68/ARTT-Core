@@ -128,7 +128,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
     public void clearData() {
         outlier_buffer.get().clear();
-        network_model.sample_window.clear();
+        network_model.getSamples().clear();
     }
 
     public void stopAggregation() {

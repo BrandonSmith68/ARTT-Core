@@ -27,7 +27,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     private final Logger logger = LoggerFactory.getLogger(ErrorModel.class);
 
     /* LinkedList for a simple queue. Always need to access all elements anyways */
-    public final LinkedList<Sample> sample_window;
+    protected final LinkedList<Sample> sample_window;
     /* Size of the data set maintained for the distribution (not the same as the network sample size) */
     protected volatile int sample_size;
     /* Expected number of dimensions for the input data */
@@ -97,6 +97,13 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     }
 
     /**
+     * @return The current sample window
+     */
+    public LinkedList<Sample> getSamples() {
+        return sample_window;
+    }
+
+    /**
      * @return The number of samples maintained for the associated distribution (i.e. size of the moving window)
      */
     public final int getLocalWindowSize() { return sample_size; }
@@ -116,7 +123,7 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
      * Computes a new pdf using the given sample window.
      * @param sampleIterator Iterator over the moving sample window.
      */
-    protected abstract void computeMetrics(LinkedList<Sample> sampleIterator);
+    public abstract void computeMetrics(LinkedList<Sample> sampleIterator);
 
     /**
      * Generates a new data set with the same shape as the input data. This should be used when generating an AMTLV to
