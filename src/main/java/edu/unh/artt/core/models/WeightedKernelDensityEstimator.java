@@ -267,14 +267,19 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
 
     public static class WeightedDistribComp {
         public final double js_divergence;
-        public final double[] mean_diff, std_dev_diff, max_diff, min_diff;
+        public final double[] mean_diff, std_dev_diff, max_diff, min_diff, prob_dist_a, prob_dist_b;
+        public final double[][] test_data;
 
-        public WeightedDistribComp(double divg, double[] mean, double[] stddev, double[] max, double[] min) {
+        public WeightedDistribComp(double divg, double[] mean, double[] stddev, double[] max, double[] min,
+                                   double[][] testData, double[] probDista, double[]probDistb) {
             js_divergence = divg;
             mean_diff = mean;
             std_dev_diff = stddev;
             max_diff = max;
             min_diff = min;
+            test_data = testData;
+            prob_dist_a = probDista;
+            prob_dist_b = probDistb;
         }
     }
 
@@ -311,8 +316,9 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         //Generate the probability distributions over both ranges
         List<double[]> testSamples = new LinkedList<>();
         fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples, baseUnit);
-        double[] probs1 = est1.estimate(testSamples.toArray(new double[0][]));
-        double[] probs2 = est2.estimate(testSamples.toArray(new double[0][]));
+        double[][] samples = testSamples.toArray(new double[0][]);
+        double[] probs1 = est1.estimate(samples);
+        double[] probs2 = est2.estimate(samples);
 
         double divergence = MathEx.JensenShannonDivergence(probs1, probs2);
 
@@ -328,7 +334,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             minDiff[i] = min1.getSample()[i] - min2.getSample()[i];
         }
 
-        return new WeightedDistribComp(divergence, meanDiff, stdDiff, maxDiff, minDiff);
+        return new WeightedDistribComp(divergence, meanDiff, stdDiff, maxDiff, minDiff, samples, probs1, probs2);
     }
 
     /**
