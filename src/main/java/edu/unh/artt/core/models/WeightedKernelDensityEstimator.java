@@ -8,6 +8,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import smile.math.MathEx;
 import smile.plot.Histogram;
 import smile.plot.PlotCanvas;
 
@@ -15,14 +16,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
-import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Models a time error distribution using a Gaussian weighted kernel density estimator. For the sake of code re-usage
@@ -191,12 +194,12 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
      * @see ErrorModel#estimate(TimeErrorSample[])
      */
     @Override
-    public double [] estimate(Sample[] pointWindow) {
+    public double [] estimate(double[][] pointWindow) {
 
         double [][] samples = new double[num_dimensions][pointWindow.length];
         for(int i = 0; i < pointWindow.length; i++) {
             for(int dim = 0; dim < num_dimensions; dim++)
-                samples[dim][i] = pointWindow[i].getSample()[dim];
+                samples[dim][i] = pointWindow[i][dim];
         }
 
         AtomicReference<double[]> estimate = new AtomicReference<>(new double[1]);
@@ -263,10 +266,11 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     }
 
     public static class WeightedDistribComp {
-        public final double divergence, mean_diff, std_dev_diff, max_diff, min_diff;
+        public final double js_divergence;
+        public final double[] mean_diff, std_dev_diff, max_diff, min_diff;
 
-        public WeightedDistribComp(double divg, double mean, double stddev, double max, double min) {
-            divergence = divg;
+        public WeightedDistribComp(double divg, double[] mean, double[] stddev, double[] max, double[] min) {
+            js_divergence = divg;
             mean_diff = mean;
             std_dev_diff = stddev;
             max_diff = max;
@@ -274,9 +278,57 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         }
     }
 
-    public static <T extends TimeErrorSample> WeightedDistribComp compare(WeightedKernelDensityEstimator<T> est1, WeightedKernelDensityEstimator<T> est2) {
-       //TODO Jensen-Shannon divergence
-        return new WeightedDistribComp(0,0,0,0,0);
+    /**
+     * Compares two distributions that operate over the same sample type. The Jenson-Shannon divergence, and difference
+     * between the means, standard deviations, max, and min values of each distribution. Note differences are est1 - est2
+     * @param est1 First kd estimator
+     * @param est2 Second kd estimator
+     * @param baseUnit Smallest unit of each dimension. Used to generate a probability space
+     * @param <T> Sample type
+     * @return Comparison of the distributions
+     */
+    public static <T extends TimeErrorSample> WeightedDistribComp compare(WeightedKernelDensityEstimator<T> est1, WeightedKernelDensityEstimator<T> est2, double [] baseUnit) {
+        var samples1 = est1.getSamples();
+        var samples2 = est2.getSamples();
+
+        if(samples1.size() < 2 || samples2.size() < 2) {
+            logger.error("Cannot compare distributions with less than 2 samples.");
+            return null;
+        }
+
+        Comparator<T> sumComp = Comparator.comparing(s -> Arrays.stream(s.getSample()).sum());
+
+        var max1 = samples1.stream().max(sumComp).get();
+        var max2= samples2.stream().max(sumComp).get();
+        var min1 = samples1.stream().min(sumComp).get();
+        var min2= samples2.stream().min(sumComp).get();
+
+        //Find the range that will fit both distributions
+        var max = (sumComp.compare(max1, max2) < 0) ? max2 : max1;
+        var min = (sumComp.compare(min1, min2) < 0) ? min1 : min2;
+        double [][] range = new double[][]{min.getSample(), max.getSample()};
+
+        //Generate the probability distributions over both ranges
+        List<double[]> testSamples = new LinkedList<>();
+        fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples, baseUnit);
+        double[] probs1 = est1.estimate(testSamples.toArray(new double[0][]));
+        double[] probs2 = est2.estimate(testSamples.toArray(new double[0][]));
+
+        double divergence = MathEx.JensenShannonDivergence(probs1, probs2);
+
+        int numD = est1.num_dimensions;
+        double [] mean1 = est1.getMean(), mean2 = est2.getMean();
+        double [] stdDev1 = est1.getStandardDeviation(), stdDev2 = est2.getStandardDeviation();
+        double [] meanDiff = new double[numD], stdDiff = new double[numD], maxDiff = new double[numD], minDiff = new double[numD];
+
+        for(int i = 0; i < numD; i++) {
+            meanDiff[i] = mean1[i] - mean2[i];
+            stdDiff[i] = stdDev1[i] - stdDev2[i];
+            maxDiff[i] = max1.getSample()[i] - max2.getSample()[i];
+            minDiff[i] = min1.getSample()[i] - min2.getSample()[i];
+        }
+
+        return new WeightedDistribComp(divergence, meanDiff, stdDiff, maxDiff, minDiff);
     }
 
     /**
@@ -311,7 +363,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
                 for(int m = 0; m < modes; m++) {
                     long sample = Math.round(mean + (modeDist * m) + r.nextGaussian() * variance);
                     samples[i + m] = sample;
-                    estimator.addSample(new OffsetGmSample((short) ((m + 1)), sample, new byte[8]));
+                    estimator.addSample(new OffsetGmSample(0, (short) ((m + 1)), sample, new byte[8]));
                     csvWriter.write(sample + "," + (m + 1) + "\n");
                     min = Math.min(min, sample);
                     max = Math.max(max, sample);
@@ -324,7 +376,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             for(int i = 0; i < range; i++) {
                 long xCoord = i+min-((int)variance*2);
                 distData[i][0] = xCoord;
-                distData[i][1] = estimator.estimate(new OffsetGmSample((short)1, xCoord, new byte[8]));
+                distData[i][1] = estimator.estimate(new OffsetGmSample(0, (short)1, xCoord, new byte[8]));
             }
             estimator.resample(500);
             estimator.shutdown();
@@ -346,14 +398,5 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         frame.setLocationRelativeTo(null);
         frame.getContentPane().add(panel);
         frame.setVisible(true);
-
-//        SwingUtilities.invokeLater(()-> {
-//            try {
-//                Thread.sleep(1000);
-//                plot.save(new File("test.png"));
-//            } catch(Exception e) {
-//                logger.error("", e);
-//            }
-//        });
     }
 }

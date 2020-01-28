@@ -42,7 +42,7 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
         dwnstrmCorr += Math.round(dwnstrmPdelay);
 
         double offsetFromGm = (t1Peer - t1Gm) + (t2Gm - t2Peer) + (dwnstrmCorr - upstrmCorr);
-        return new OffsetGmSample(1, offsetFromGm, revSync.clock_identity);
+        return new OffsetGmSample(t2Peer, 1, offsetFromGm, revSync.clock_identity);
     }
 
     /**
@@ -81,11 +81,11 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
      *     </tr>
      * </table>
      *
-     * @see SampleProcessor#processAMTLVData(byte[], byte[])
+     * @see SampleProcessor#processAMTLVData(long, byte[], byte[])
      * @return Representation of the AMTLV data field with OffsetFromGm samples
      */
     @Override
-    protected AMTLVData<OffsetGmSample> processAMTLVData(byte [] rxClockId, byte[] amtlv) {
+    protected AMTLVData<OffsetGmSample> processAMTLVData(long rxTimestamp, byte [] rxClockId, byte[] amtlv) {
         long weight = new BigInteger(Arrays.copyOfRange(amtlv, 0, 4)).longValue(); //Want unsigned
         int sampleLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 4, 6)).intValue();
         int outlierLen = 0xffff & new BigInteger(Arrays.copyOfRange(amtlv, 6, 8)).intValue();
@@ -114,13 +114,13 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
             if(i >= (sampleLen+8)) { //Parse outliers
                 i += 8;
                 byte [] clockId = Arrays.copyOfRange(amtlv, i, i+8);
-                outliers.add(new OffsetGmSample(weight, offset, clockId));
+                outliers.add(new OffsetGmSample(rxTimestamp, weight, offset, clockId));
             } else { //Parse samples
-                samples.add(new OffsetGmSample(weight, offset, rxClockId));
+                samples.add(new OffsetGmSample(rxTimestamp, weight, offset, rxClockId));
             }
         }
 
-        return new AMTLVData<>(weight, rxClockId, samples, outliers);
+        return new AMTLVData<>(rxTimestamp, weight, rxClockId, samples, outliers);
     }
 
     /**
@@ -139,9 +139,9 @@ public class OffsetSampleProcessor extends SampleProcessor<OffsetGmSample> {
     @Override
     public AMTLVData<OffsetGmSample> packageAMTLVData(long networkRep, List<OffsetGmSample> outliers, double[][] resampledData) {
         List<OffsetGmSample> samples = Arrays.stream(resampledData).map(
-                samp -> new OffsetGmSample(networkRep, samp[0], new byte[8])).collect(Collectors.toList());
+                samp -> new OffsetGmSample(0, networkRep, samp[0], new byte[8])).collect(Collectors.toList());
 
-        return new AMTLVData<>(networkRep, new byte[8], samples,outliers);
+        return new AMTLVData<>(0, networkRep, new byte[8], samples,outliers);
     }
 
     /**

@@ -42,24 +42,6 @@ public class DistanceOutlierDetector<Sample extends TimeErrorSample> extends Out
     }
 
     /**
-     * Helper method to sum over a multi-dimensional range. Starts at the lower range bound, and increments each
-     * dimension by the associated value in the base unit vector specified in the constructor.
-     * @param curDim Current dimension
-     * @param explSpace Record of current position in the state space
-     * @param range Min and max values for each dimension
-     * @param testSamples Sample set to accumulate
-     */
-    private void fillMultiDim(int curDim, double [] explSpace, double[][] range, List<double[]> testSamples) {
-        do {
-            if(curDim == explSpace.length - 1)
-                testSamples.add(Arrays.copyOf(explSpace, explSpace.length));
-            else
-                fillMultiDim(curDim + 1, explSpace, range, testSamples);
-            explSpace[curDim] += increment_amount[curDim];
-        } while(explSpace[curDim] <= range[1][curDim]);
-    }
-
-    /**
      * Uses the reference model to determine the size of the neighborhood for a given point. If the cumulative likelihood
      * over the range of the sample +/- the standard deviation of the data set is less than the specified threshold,
      * then the sample is considered an outlier.
@@ -92,7 +74,7 @@ public class DistanceOutlierDetector<Sample extends TimeErrorSample> extends Out
 
         //Generate a set of points in the state space to integrate over using the base unit vector
         List<double[]> testSamples = new LinkedList<>();
-        fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples);
+        ErrorModel.fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples, increment_amount);
 
         //Generate the likelihoods of each generated sample
         double[] probs = reference_model.estimate(

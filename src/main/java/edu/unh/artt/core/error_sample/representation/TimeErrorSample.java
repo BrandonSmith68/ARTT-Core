@@ -17,6 +17,11 @@ public interface TimeErrorSample {
     long getWeight();
 
     /**
+     * @return A timestamp of when the data was received or computed
+     */
+    long getTimestamp();
+
+    /**
      * @return A semi-unique identifier for the sample.
      */
     String getIdentifier();

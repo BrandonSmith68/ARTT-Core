@@ -20,11 +20,14 @@ public class OffsetGmSample implements TimeErrorSample {
     /* Network representation of this sample */
     final long weight;
 
+    /* When the offset was recorded in the timebase of the receiver */
+    final long timestamp;
+
     /**
-     * @see OffsetGmSample#OffsetGmSample(long, double, byte[] empty)
+     * @see OffsetGmSample#OffsetGmSample(long, long, double, byte[] empty)
      */
-    public OffsetGmSample(long weight, double offsetFromGmScaled) {
-        this(weight, offsetFromGmScaled, new byte[8]);
+    public OffsetGmSample(long timestamp, long weight, double offsetFromGmScaled) {
+        this(timestamp, weight, offsetFromGmScaled, new byte[8]);
     }
 
     /**
@@ -32,15 +35,16 @@ public class OffsetGmSample implements TimeErrorSample {
      * @param offsetFromGmScaled Computed offset metric
      * @param clockId clock identity that the sample is associated with
      */
-    public OffsetGmSample(long weight, double offsetFromGmScaled, byte [] clockId) {
+    public OffsetGmSample(long timestamp, long weight, double offsetFromGmScaled, byte [] clockId) {
         offset_from_gm = offsetFromGmScaled;
         clock_identity = clockId;
+        this.timestamp = timestamp;
         this.weight = weight;
     }
 
     @Override
     public List<OffsetGmSample> parseSamples(List<double[]> sampleData) {
-        return sampleData.stream().map(darr -> new OffsetGmSample(1, darr[0])).collect(Collectors.toList());
+        return sampleData.stream().map(darr -> new OffsetGmSample(System.currentTimeMillis(), 1, darr[0])).collect(Collectors.toList());
     }
 
     /**
@@ -57,6 +61,14 @@ public class OffsetGmSample implements TimeErrorSample {
     @Override
     public long getWeight() {
         return weight;
+    }
+
+    /**
+     * @see TimeErrorSample#getTimestamp()
+     */
+    @Override
+    public long getTimestamp() {
+        return timestamp;
     }
 
     /**

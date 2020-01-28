@@ -84,7 +84,7 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
             Sample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
             sample_consumers.parallelStream().forEach(action->action.accept(sample));
             amtlv_consumers.parallelStream().forEach(action->action.accept(
-                    processAMTLVData(revSyncData.clock_identity, revSyncData.amtlv)));
+                    processAMTLVData(revSyncData.sync_receipt.getTimestamp(), revSyncData.clock_identity, revSyncData.amtlv)));
         }
     }
 
@@ -96,11 +96,12 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
 
     /**
      * Processes the data field of a received AMTLV.
+     * @param timestamp Timestamp of when the data was received
      * @param clockId Clock id of the device sending the AMTLV
      * @param AMTLV Data field of the AMTLV
      * @return A parsed representation of the information contained within the AMTLV
      */
-    protected abstract AMTLVData<Sample> processAMTLVData(byte[] clockId, byte [] AMTLV);
+    protected abstract AMTLVData<Sample> processAMTLVData(long timestamp, byte[] clockId, byte [] AMTLV);
 
     /**
      * Packages newly computed data into an AMTLV to be transmitted upstream

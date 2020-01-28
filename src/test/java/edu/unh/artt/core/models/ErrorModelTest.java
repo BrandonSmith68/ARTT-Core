@@ -22,7 +22,7 @@ public class ErrorModelTest {
             @Override
             public double estimate(OffsetGmSample point) {return 0; }
             @Override
-            public double[] estimate(OffsetGmSample[] pointWindow) {return new double[0];}
+            public double[] estimate(double[][] pointWindow) {return new double[0];}
             @Override
             public double[] getMean() {return new double[0]; }
             @Override
@@ -38,7 +38,7 @@ public class ErrorModelTest {
         assertEquals(model.num_dimensions, 1);
 
         try {
-            model.addSample(new OffsetGmSample(1,1) {
+            model.addSample(new OffsetGmSample(0, 1,1) {
                 @Override
                 public int getNumDimensions() {
                     return 2;
@@ -50,19 +50,19 @@ public class ErrorModelTest {
         assertFalse(model.shouldResample(null));
 
         for(int i = 0; i < sampleSize-2; i++) {
-            model.addSample(new OffsetGmSample(1, 1));
+            model.addSample(new OffsetGmSample(0,1, 1));
             assertFalse(model.shouldResample(null));
         }
-        model.addSample(new OffsetGmSample(1, 1));
+        model.addSample(new OffsetGmSample(0,1, 1));
         assertTrue(model.shouldResample(null));
 
         model.resample(100);
 
         for(int i = 0; i < sampleSize-1; i++) {
-            model.addSample(new OffsetGmSample(1, 1));
+            model.addSample(new OffsetGmSample(0,1, 1));
             assertFalse(model.shouldResample(null));
         }
-        model.addSample(new OffsetGmSample(1, 1));
+        model.addSample(new OffsetGmSample(0,1, 1));
         assertTrue(model.shouldResample(null));
 
         assertEquals(sampleSize, model.sample_window.size());

@@ -97,7 +97,7 @@ public class OffsetSampleProcessorTest {
                     for(long outlOff : offsetOpts) {
                         byte[] tlv = testAmtlvToBytesHelper(numOutl, numSamp, outlWeight, outlOff, smplOff, smplWt, outlierId).get(0);
                         OffsetSampleProcessor sampleProcessor = new OffsetSampleProcessor();
-                        AMTLVData<OffsetGmSample> amtlvData = sampleProcessor.processAMTLVData(amtlvId, tlv);
+                        AMTLVData<OffsetGmSample> amtlvData = sampleProcessor.processAMTLVData(0, amtlvId, tlv);
 
                         assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getSample().length==1 && s.getSample()[0] == smplOff));
                         assertTrue(amtlvData.subnetwork_samples.stream().allMatch(s->s.getWeight() == smplWt));
@@ -118,7 +118,7 @@ public class OffsetSampleProcessorTest {
         int numOutl = 100, numSamp = 1000, outlWeight = 1, smplWt = 1;
         long outlOff = -1000, smplOff = 10;
         byte [] outlierId = new byte[]{0,(byte) 0xff,(byte) 0xff, (byte)0xff, (byte)0xff, (byte)0xff, (byte)0xff, 0};
-        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(outlWeight, outlOff, outlierId)).collect(Collectors.toList());
+        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(0, outlWeight, outlOff, outlierId)).collect(Collectors.toList());
         double[][] samples = IntStream.range(0, numSamp).mapToObj(i -> new double[]{smplOff}).toArray(double[][]::new);
 
         OffsetSampleProcessor processor = new OffsetSampleProcessor();
@@ -155,7 +155,7 @@ public class OffsetSampleProcessorTest {
 
     private List<byte[]> testAmtlvToBytesHelper(int numOutl, int numSamp, int outlWeight, long outlOff, long smplOff, int smplWt, byte [] outlierId) {
         int totalSize = numOutl * 16 + numSamp * 8 + 8;
-        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(outlWeight, outlOff, outlierId)).collect(Collectors.toList());
+        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(0, outlWeight, outlOff, outlierId)).collect(Collectors.toList());
         double[][] samples = IntStream.range(0, numSamp).mapToObj(i -> new double[]{smplOff}).toArray(double[][]::new);
 
         OffsetSampleProcessor processor = new OffsetSampleProcessor();
@@ -186,7 +186,7 @@ public class OffsetSampleProcessorTest {
     private void testAmtlvToBytesMultiHelper(int maxFrameSize, int numOutl, int numSamp, int outlWeight, long outlOff, long smplOff, int smplWt, byte [] outlierId) {
         int sampleSize = numSamp * 8;
         int outlSize = numOutl * 16;
-        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(outlWeight, outlOff, outlierId)).collect(Collectors.toList());
+        List<OffsetGmSample> outliers = IntStream.range(0, numOutl).mapToObj(i -> new OffsetGmSample(0,outlWeight, outlOff, outlierId)).collect(Collectors.toList());
         double[][] samples = IntStream.range(0, numSamp).mapToObj(i -> new double[]{smplOff}).toArray(double[][]::new);
 
         OffsetSampleProcessor processor = new OffsetSampleProcessor();

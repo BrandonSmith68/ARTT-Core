@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -170,11 +171,34 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
      * @param pointWindow Sample set
      * @return Likelihood of each sample, corresponding to the same indices as the given array
      */
-    public abstract double [] estimate(Sample[] pointWindow);
+    public abstract double [] estimate(double[][] pointWindow);
+
+    public double [] estimate(Sample[] pointWindow) {
+        return estimate(Arrays.stream(pointWindow).map(Sample::getSample).toArray(double[][]::new));
+    }
 
     public abstract double [] getMean();
 
     public abstract double [] getVariance();
 
     public abstract double [] getStandardDeviation();
+
+    /**
+     * Helper method to sum over a multi-dimensional range. Starts at the lower range bound, and increments each
+     * dimension by the associated value in the base unit vector specified in the constructor.
+     * @param curDim Current dimension
+     * @param explSpace Record of current position in the state space
+     * @param range Min and max values for each dimension
+     * @param testSamples Sample set to accumulate
+     * @param incrAmount Amount to increment each dimension by
+     */
+    public static void fillMultiDim(int curDim, double [] explSpace, double[][] range, List<double[]> testSamples, double [] incrAmount) {
+        do {
+            if(curDim == explSpace.length - 1)
+                testSamples.add(Arrays.copyOf(explSpace, explSpace.length));
+            else
+                fillMultiDim(curDim + 1, explSpace, range, testSamples, incrAmount);
+            explSpace[curDim] += incrAmount[curDim];
+        } while(explSpace[curDim] <= range[1][curDim]);
+    }
 }
