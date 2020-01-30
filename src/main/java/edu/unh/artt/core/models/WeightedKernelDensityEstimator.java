@@ -53,7 +53,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     private static void getInterpreterAccess(Consumer<Interpreter> pythonInterpreter) {
         CountDownLatch latch = new CountDownLatch(1);
         long timeout = 10; //TODO This will depend on the sample size, but most operations should be able to run within 10s
-        TimeUnit unit = TimeUnit.SECONDS;
+        TimeUnit unit = TimeUnit.MINUTES;
         python_executor.execute(() -> {
             try {
                 if (kde_wrapper.get() == null) { //Runs on a single thread, no race conditions for setting kde_wrapper.
@@ -295,6 +295,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     public static <T extends TimeErrorSample> WeightedDistribComp compare(WeightedKernelDensityEstimator<T> est1, WeightedKernelDensityEstimator<T> est2, double [] baseUnit) {
         var samples1 = est1.getSamples();
         var samples2 = est2.getSamples();
+        int numD = est1.num_dimensions;
 
         if(samples1.size() < 2 || samples2.size() < 2) {
             logger.error("Cannot compare distributions with less than 2 samples.");
@@ -311,7 +312,12 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         //Find the range that will fit both distributions
         var max = (sumComp.compare(max1, max2) < 0) ? max2 : max1;
         var min = (sumComp.compare(min1, min2) < 0) ? min1 : min2;
-        double [][] range = new double[][]{min.getSample(), max.getSample()};
+        double [][] range = new double[][] {min.getSample(), max.getSample()};
+        for(int i = 0; i < numD; i++) {
+            double stdAvg = (est1.getStandardDeviation()[i] + est2.getStandardDeviation()[i]) / 2;
+            range[0][i] -= stdAvg;
+            range[1][i] += stdAvg;
+        };
 
         //Generate the probability distributions over both ranges
         List<double[]> testSamples = new LinkedList<>();
@@ -322,7 +328,6 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
 
         double divergence = MathEx.JensenShannonDivergence(probs1, probs2);
 
-        int numD = est1.num_dimensions;
         double [] mean1 = est1.getMean(), mean2 = est2.getMean();
         double [] stdDev1 = est1.getStandardDeviation(), stdDev2 = est2.getStandardDeviation();
         double [] meanDiff = new double[numD], stdDiff = new double[numD], maxDiff = new double[numD], minDiff = new double[numD];
