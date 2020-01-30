@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,8 +101,8 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
     /**
      * @return The current sample window
      */
-    public LinkedList<Sample> getSamples() {
-        return sample_window;
+    public List<Sample> getSamples() {
+        return Collections.unmodifiableList(sample_window);
     }
 
     /**
@@ -125,6 +126,13 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
      * @param sampleIterator Iterator over the moving sample window.
      */
     public abstract void computeMetrics(LinkedList<Sample> sampleIterator);
+
+    public void clearData() {
+        samples_since_last_sent.set(0);
+        windowFlag.set(false);
+        resampleFlag.set(false);
+        sample_window.clear();
+    }
 
     /**
      * Generates a new data set with the same shape as the input data. This should be used when generating an AMTLV to
@@ -199,6 +207,6 @@ public abstract class ErrorModel<Sample extends TimeErrorSample> {
             else
                 fillMultiDim(curDim + 1, explSpace, range, testSamples, incrAmount);
             explSpace[curDim] += incrAmount[curDim];
-        } while(explSpace[curDim] <= range[1][curDim]);
+        } while(explSpace[curDim] < range[1][curDim]);
     }
 }

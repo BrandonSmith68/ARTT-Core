@@ -45,6 +45,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
     /* Callback run when a new outlier has been detected */
     private final Vector<Consumer<Sample>> outlier_receipt_callbacks = new Vector<>();
+    private final Vector<Consumer<Sample>> new_samplereceipt_callbacks = new Vector<>();
 
     /**
      * @param processor Instance used to process information received on both observation and monitoring ports
@@ -83,6 +84,7 @@ public class Aggregator<Sample extends TimeErrorSample> {
         //Process the results of the comparison between the observer port and monitor ports.
         proc.registerErrorComputeAction((sample -> {
             network_model.addSample(sample);
+            new_samplereceipt_callbacks.forEach(c->c.accept(sample));
 
             if(network_model.hasReachedMinSampleWindow() && network_outlier_detector.isOutlier(sample)) {
                 outlier_receipt_callbacks.forEach(c -> c.accept(sample));
@@ -92,7 +94,9 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
         //Process the AMTLVs received on any monitoring port
         proc.onAMTLVReceipt((amtlv) -> {
-            network_model.addSamples(amtlv.subnetwork_samples);
+            List<Sample> newSamps = amtlv.subnetwork_samples;
+            newSamps.forEach(s -> new_samplereceipt_callbacks.forEach(c -> c.accept(s)));
+            network_model.addSamples(newSamps);
             amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> outlier_buffer.get().add(smp));
         });
         sample_processor.set(proc);
@@ -126,9 +130,17 @@ public class Aggregator<Sample extends TimeErrorSample> {
         outlier_receipt_callbacks.remove(callback);
     }
 
+    public void registeNewSampleReceiptCallback(Consumer<Sample> callback) {
+        new_samplereceipt_callbacks.add(callback);
+    }
+
+    public void unregisterNewSampleReceiptCallback(Consumer<Sample> callback) {
+        new_samplereceipt_callbacks.remove(callback);
+    }
+
     public void clearData() {
         outlier_buffer.get().clear();
-        network_model.getSamples().clear();
+        network_model.clearData();
     }
 
     public void stopAggregation() {
