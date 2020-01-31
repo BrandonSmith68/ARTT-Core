@@ -2,6 +2,7 @@ package edu.unh.artt.core;
 
 import edu.unh.artt.core.error_sample.processing.SampleProcessor;
 import edu.unh.artt.core.error_sample.representation.AMTLVData;
+import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import edu.unh.artt.core.models.ErrorModel;
 import edu.unh.artt.core.outlier.OutlierDetector;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Implements the AMTLV Combination algorithm. The algorithm computes the time error of a node's direct link partners,
@@ -97,7 +99,9 @@ public class Aggregator<Sample extends TimeErrorSample> {
             List<Sample> newSamps = amtlv.subnetwork_samples;
             newSamps.forEach(s -> new_samplereceipt_callbacks.forEach(c -> c.accept(s)));
             network_model.addSamples(newSamps);
-            amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> outlier_buffer.get().add(smp));
+            logger.info("Received {} samples ", newSamps.size());
+            if(network_model.hasReachedMinSampleWindow())
+                amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> outlier_buffer.get().add(smp));
         });
         sample_processor.set(proc);
     }

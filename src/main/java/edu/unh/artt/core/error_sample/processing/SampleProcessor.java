@@ -8,6 +8,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
@@ -78,11 +79,12 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
      * @param revSyncData Data parsed from the reverse sync
      * @param peerMeanPathDelay Mean path delay between the current node and the direct link partner
      */
-    public final void receivedReverseSync(SyncData revSyncData, double peerMeanPathDelay) {
+    public final void receivedReverseSync(SyncData revSyncData, double peerMeanPathDelay, boolean addSample) {
         GmData gmData = most_recent_meas.get();
         if(gmData != null) {
             Sample sample = computeTimeError(gmData.sync_data, gmData.mean_path_delay, revSyncData, peerMeanPathDelay);
-            sample_consumers.parallelStream().forEach(action->action.accept(sample));
+            if(addSample)
+                sample_consumers.parallelStream().forEach(action->action.accept(sample));
             amtlv_consumers.parallelStream().forEach(action->action.accept(
                     processAMTLVData(revSyncData.sync_receipt.getTimestamp(), revSyncData.clock_identity, revSyncData.amtlv)));
         }
