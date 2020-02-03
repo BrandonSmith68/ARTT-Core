@@ -58,23 +58,24 @@ public class DistanceOutlierDetector<Sample extends TimeErrorSample> extends Out
         }
 
         //Set the range of the state space to integrate over. Range is +/- the standard deviation
-        double [] stdevs = reference_model.getStandardDeviation();
-        double [][] range = new double[2][smp.length]; //Index 0 is min, 1 is max
-        for(int m = 0; m < 2; m++) {
-            range[m] = new double[smp.length];
-            for (int i = 0; i < smp.length; i++) {
-                //If the standard deviation is very large the number of samples to estimate grows rapidly and will
-                //subsequently pin down 1 or more processors and render the mechanism useless. In the worst case just
-                //use a percentage of the local window size.
-                double rng = (stdevs[i] > reference_model.getLocalWindowSize()) ? reference_model.getLocalWindowSize() * 0.25 : stdevs[i];
-                double dist = rng * ((m == 0) ? -1 : 1); //+/- the standard deviation
-                range[m][i] = smp[i] + dist;
-            }
-        }
+        //TODO The effectiveness of removing this range needs to be tested, but just using the likelihood of the sample should be sufficient
+//        double [] stdevs = reference_model.getStandardDeviation();
+//        double [][] range = new double[2][smp.length]; //Index 0 is min, 1 is max
+//        for(int m = 0; m < 2; m++) {
+//            range[m] = new double[smp.length];
+//            for (int i = 0; i < smp.length; i++) {
+//                //If the standard deviation is very large the number of samples to estimate grows rapidly and will
+//                //subsequently pin down 1 or more processors and render the mechanism useless. In the worst case just
+//                //use a percentage of the local window size.
+//                double rng = (stdevs[i] > reference_model.getLocalWindowSize()) ? reference_model.getLocalWindowSize() * 0.25 : stdevs[i];
+//                double dist = rng * ((m == 0) ? -1 : 1); //+/- the standard deviation
+//                range[m][i] = smp[i] + dist;
+//            }
+//        }
 
         //Generate a set of points in the state space to integrate over using the base unit vector
-        List<double[]> testSamples = new LinkedList<>();
-        ErrorModel.fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples, increment_amount);
+        List<double[]> testSamples = List.of(sample.getSample());
+//        ErrorModel.fillMultiDim(0, Arrays.copyOf(range[0], range[0].length), range, testSamples, increment_amount);
 
         //Generate the likelihoods of each generated sample
         double[] probs = reference_model.estimate(

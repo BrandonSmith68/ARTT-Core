@@ -6,12 +6,14 @@ import edu.unh.artt.core.error_sample.representation.OffsetGmSample;
 import edu.unh.artt.core.error_sample.representation.TimeErrorSample;
 import edu.unh.artt.core.models.ErrorModel;
 import edu.unh.artt.core.outlier.OutlierDetector;
+import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -85,13 +87,13 @@ public class Aggregator<Sample extends TimeErrorSample> {
 
         //Process the results of the comparison between the observer port and monitor ports.
         proc.registerErrorComputeAction((sample -> {
-            network_model.addSample(sample);
-            new_samplereceipt_callbacks.forEach(c->c.accept(sample));
-
             if(network_model.hasReachedMinSampleWindow() && network_outlier_detector.isOutlier(sample)) {
                 outlier_receipt_callbacks.forEach(c -> c.accept(sample));
                 outlier_buffer.get().add(sample);
             }
+
+            network_model.addSample(sample);
+            new_samplereceipt_callbacks.forEach(c->c.accept(sample));
         }));
 
         //Process the AMTLVs received on any monitoring port
@@ -99,9 +101,17 @@ public class Aggregator<Sample extends TimeErrorSample> {
             List<Sample> newSamps = amtlv.subnetwork_samples;
             newSamps.forEach(s -> new_samplereceipt_callbacks.forEach(c -> c.accept(s)));
             network_model.addSamples(newSamps);
-            logger.info("Received {} samples ", newSamps.size());
-            if(network_model.hasReachedMinSampleWindow())
-                amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> outlier_buffer.get().add(smp));
+            logger.info("Received {} samples from AMTLV with clockId {}", newSamps.size(), Hex.encodeHex(amtlv.clock_id));
+            if(network_model.hasReachedMinSampleWindow()) {
+                AtomicLong outlSize = new AtomicLong(amtlv.subnetwork_outliers.size());
+                amtlv.subnetwork_outliers.stream().filter(network_outlier_detector::isOutlier).forEach((smp) -> {
+                    outlier_receipt_callbacks.forEach(c -> c.accept(smp));
+                    outlier_buffer.get().add(smp);
+                    outlSize.decrementAndGet();
+                });
+                logger.info("Observed {} reported outliers, {} were found to no longer be outliers relative to the" +
+                                " current model.", amtlv.subnetwork_outliers.size(), outlSize.get());
+            }
         });
         sample_processor.set(proc);
     }

@@ -78,6 +78,8 @@ public abstract class SampleProcessor<Sample extends TimeErrorSample> {
      * Method to be called when new information from a downstream partner is received (reverse Sync).
      * @param revSyncData Data parsed from the reverse sync
      * @param peerMeanPathDelay Mean path delay between the current node and the direct link partner
+     * @param addSample Indicates whether or not the time error of the direct link partner should be computed. In either
+     *                  case samples from the received AMTLV will be parsed.
      */
     public final void receivedReverseSync(SyncData revSyncData, double peerMeanPathDelay, boolean addSample) {
         GmData gmData = most_recent_meas.get();
