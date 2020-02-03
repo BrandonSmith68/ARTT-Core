@@ -9,6 +9,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import smile.math.MathEx;
+import smile.math.distance.JensenShannonDistance;
 import smile.plot.Histogram;
 import smile.plot.PlotCanvas;
 
@@ -266,13 +267,13 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     }
 
     public static class WeightedDistribComp {
-        public final double js_divergence;
+        public final double js_distance;
         public final double[] mean_diff, std_dev_diff, max_diff, min_diff, prob_dist_a, prob_dist_b;
         public final double[][] test_data;
 
-        public WeightedDistribComp(double divg, double[] mean, double[] stddev, double[] max, double[] min,
+        public WeightedDistribComp(double dist, double[] mean, double[] stddev, double[] max, double[] min,
                                    double[][] testData, double[] probDista, double[]probDistb) {
-            js_divergence = divg;
+            js_distance = dist;
             mean_diff = mean;
             std_dev_diff = stddev;
             max_diff = max;
@@ -284,7 +285,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
     }
 
     /**
-     * Compares two distributions that operate over the same sample type. The Jenson-Shannon divergence, and difference
+     * Compares two distributions that operate over the same sample type. The Jenson-Shannon distance, and difference
      * between the means, standard deviations, max, and min values of each distribution. Note differences are est1 - est2
      * @param est1 First kd estimator
      * @param est2 Second kd estimator
@@ -326,7 +327,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
         double[] probs1 = est1.estimate(samples);
         double[] probs2 = est2.estimate(samples);
 
-        double divergence = MathEx.JensenShannonDivergence(probs1, probs2);
+        double distance = new JensenShannonDistance().d(probs1, probs2);
 
         double [] mean1 = est1.getMean(), mean2 = est2.getMean();
         double [] stdDev1 = est1.getStandardDeviation(), stdDev2 = est2.getStandardDeviation();
@@ -339,7 +340,7 @@ public class WeightedKernelDensityEstimator<Sample extends TimeErrorSample> exte
             minDiff[i] = min1.getSample()[i] - min2.getSample()[i];
         }
 
-        return new WeightedDistribComp(divergence, meanDiff, stdDiff, maxDiff, minDiff, samples, probs1, probs2);
+        return new WeightedDistribComp(distance, meanDiff, stdDiff, maxDiff, minDiff, samples, probs1, probs2);
     }
 
     /**
